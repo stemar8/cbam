@@ -196,6 +196,17 @@
   .year-tab.active { background: var(--accent); color: white; }
   .year-tab:hover:not(.active) { background: var(--accent-light); color: var(--accent); }
 
+  .btn-reset {
+    display: inline-flex; align-items: center; gap: 6px;
+    padding: 10px 20px; border: 1px solid var(--border); border-radius: 8px;
+    background: var(--input-bg); color: var(--text-muted);
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    font-size: 14px; font-weight: 600; cursor: pointer; transition: all 0.2s;
+    margin-top: 16px;
+  }
+  .btn-reset:hover { background: #fee; border-color: #d44; color: #c33; }
+  .btn-reset svg { width: 16px; height: 16px; }
+
   /* Loading overlay */
   .loading-overlay {
     position: fixed; top: 0; left: 0; right: 0; bottom: 0;
@@ -279,7 +290,7 @@
       </div>
       <div class="form-group">
         <label>Počet kusů</label>
-        <input type="number" id="itemQty" value="1000" min="1" oninput="onItemQtyChange()">
+        <input type="number" id="itemQty" value="1" min="1" oninput="onItemQtyChange()">
       </div>
     </div>
     <div class="product-card" id="productCard">
@@ -323,6 +334,11 @@
   </div>
 
   <div class="note-box" id="noteBox" style="display:none"></div>
+
+  <button class="btn-reset" onclick="resetAll()">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"/></svg>
+    Reset kalkulačky
+  </button>
 
   <div class="result-card">
     <div class="result-label">Celkové předpokládané náklady CBAM</div>
@@ -685,6 +701,55 @@ function calculate() {
 }
 
 function fmt(n,d=2){ return n.toLocaleString('cs-CZ',{minimumFractionDigits:d,maximumFractionDigits:d}); }
+
+// === RESET ===
+function resetAll() {
+  // Country
+  document.getElementById('country').value = '';
+  currentCnEntries = [];
+  selectedCnIdx = -1;
+  selectedItemKey = null;
+
+  // Mode back to manual
+  setMode('manual');
+
+  // CN search
+  const cnSearch = document.getElementById('cnSearch');
+  cnSearch.value = ''; cnSearch.disabled = true; cnSearch.placeholder = 'Nejprve vyberte zemi…';
+  closeDd('cnDropdown');
+
+  // Item search
+  document.getElementById('itemSearch').value = '';
+  closeDd('itemDropdown');
+  document.getElementById('itemQty').value = 1;
+  document.getElementById('productCard').classList.remove('visible');
+
+  // Year back to 2026
+  selectedYear = '2026';
+  document.querySelectorAll('.year-tab').forEach(b => b.classList.toggle('active', b.dataset.year === '2026'));
+
+  // Params to defaults
+  document.getElementById('qty').value = 1;
+  document.getElementById('qty').classList.remove('auto-filled-green');
+  document.getElementById('qtyBadge').style.display = 'none';
+  document.getElementById('qtyInfo').textContent = '';
+
+  document.getElementById('emissions').value = '';
+  document.getElementById('benchmark').value = '';
+  document.getElementById('factor').value = 0.975;
+  document.getElementById('etsPrice').value = 90;
+  document.getElementById('paidAbroad').value = 0;
+
+  // Clear auto badges
+  ['emissions','benchmark'].forEach(id => document.getElementById(id).classList.remove('auto-filled'));
+  document.getElementById('emBadge').style.display = 'none';
+  document.getElementById('bmBadge').style.display = 'none';
+  document.getElementById('emissionsInfo').textContent = '';
+  document.getElementById('benchmarkInfo').textContent = '';
+  document.getElementById('noteBox').style.display = 'none';
+
+  calculate();
+}
 
 // === START ===
 window.onload = loadData;
