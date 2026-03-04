@@ -1,0 +1,693 @@
+<!DOCTYPE html>
+<html lang="cs">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CBAM - BCZ</title>
+<style>
+  :root {
+    --bg: #ffffff;
+    --card: #ffffff;
+    --accent: #0066cc;
+    --accent-hover: #004c99;
+    --accent-light: #e8f0fa;
+    --accent-dark: #003d7a;
+    --text: #1a1a1a;
+    --text-muted: #5c5c5c;
+    --border: #d6d3ce;
+    --input-bg: #fafaf9;
+    --result-bg: #0066cc;
+    --shadow: 0 2px 20px rgba(0,0,0,0.06);
+    --green: #1a8a3f;
+    --green-light: #e6f5eb;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+    padding: 20px;
+  }
+  .page-header {
+    max-width: 880px;
+    margin: 30px auto 8px;
+    padding: 0 10px;
+  }
+  .page-header h1 {
+    font-size: 38px;
+    font-weight: 300;
+    color: var(--accent-dark);
+    letter-spacing: -0.5px;
+  }
+  .subtitle {
+    max-width: 880px;
+    margin: 0 auto 20px;
+    padding: 0 10px;
+  }
+  .subtitle p {
+    font-size: 15px;
+    color: var(--text-muted);
+    line-height: 1.5;
+  }
+  .calculator {
+    background: var(--card);
+    padding: 36px;
+    border-radius: 16px;
+    max-width: 880px;
+    margin: 0 auto 20px;
+    box-shadow: var(--shadow);
+    border: 1px solid rgba(0,0,0,0.04);
+  }
+  .section-title {
+    font-size: 22px;
+    font-weight: 300;
+    color: var(--accent-dark);
+    margin-bottom: 20px;
+    padding-bottom: 12px;
+    border-bottom: 2px solid var(--accent-light);
+  }
+  .grid-2 {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+  }
+  @media (max-width: 640px) { .grid-2 { grid-template-columns: 1fr; } }
+  .form-group { margin-bottom: 16px; }
+  .form-group.full { grid-column: 1 / -1; }
+  label {
+    display: block;
+    font-weight: 600;
+    margin-bottom: 6px;
+    font-size: 13px;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.4px;
+  }
+  select, input[type="number"], input[type="text"] {
+    width: 100%;
+    padding: 11px 14px;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    font-size: 15px;
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    background: var(--input-bg);
+    color: var(--text);
+    transition: border-color 0.2s, box-shadow 0.2s;
+  }
+  select {
+    appearance: none; -webkit-appearance: none;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%235c5c5c' stroke-width='1.5' fill='none'/%3E%3C/svg%3E");
+    background-repeat: no-repeat; background-position: right 14px center; padding-right: 36px; cursor: pointer;
+  }
+  select:focus, input:focus {
+    border-color: var(--accent);
+    outline: none;
+    box-shadow: 0 0 0 3px rgba(0,102,204,0.1);
+  }
+  input[type="number"]::-webkit-inner-spin-button { opacity: 0.4; }
+  .auto-filled { background: var(--accent-light) !important; border-color: var(--accent) !important; font-weight: 600; }
+  .auto-filled-green { background: var(--green-light) !important; border-color: var(--green) !important; font-weight: 600; }
+  .info-badge {
+    display: inline-block; font-size: 11px; padding: 2px 8px; border-radius: 4px;
+    background: var(--accent-light); color: var(--accent); font-weight: 600; margin-left: 8px;
+  }
+  .info-badge.green { background: var(--green-light); color: var(--green); }
+  .route-info { font-size: 12px; color: var(--text-muted); margin-top: 4px; font-style: italic; }
+
+  .product-card {
+    display: none;
+    background: var(--green-light);
+    border: 1px solid var(--green);
+    border-radius: 10px;
+    padding: 14px 18px;
+    margin-top: 10px;
+  }
+  .product-card.visible { display: block; }
+  .product-card .pc-name { font-weight: 600; font-size: 15px; color: var(--text); }
+  .product-card .pc-detail { font-size: 13px; color: var(--text-muted); margin-top: 4px; }
+  .product-card .pc-detail span { font-weight: 600; color: var(--green); }
+
+  .search-select { position: relative; }
+  .search-select input[type="text"] {
+    cursor: text;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 24 24' fill='none' stroke='%230066cc' stroke-width='2'%3E%3Ccircle cx='11' cy='11' r='8'/%3E%3Cpath d='M21 21l-4.35-4.35'/%3E%3C/svg%3E");
+    background-repeat: no-repeat; background-position: right 14px center; padding-right: 36px;
+  }
+  .search-select .dropdown {
+    display: none; position: absolute; top: 100%; left: 0; right: 0;
+    max-height: 320px; overflow-y: auto; background: white;
+    border: 1px solid var(--border); border-top: none; border-radius: 0 0 8px 8px;
+    box-shadow: 0 8px 24px rgba(0,0,0,0.12); z-index: 100;
+  }
+  .search-select .dropdown.open { display: block; }
+  .search-select .dropdown .option {
+    padding: 10px 14px; cursor: pointer; font-size: 14px;
+    border-bottom: 1px solid #f0f0f0; transition: background 0.15s;
+  }
+  .search-select .dropdown .option:hover,
+  .search-select .dropdown .option.highlighted { background: var(--accent-light); }
+  .search-select .dropdown .option .cn-code { font-weight: 700; color: var(--accent-dark); font-family: 'Consolas','Courier New',monospace; font-size: 14px; }
+  .search-select .dropdown .option .cn-desc { color: var(--text-muted); font-size: 13px; margin-left: 6px; }
+  .search-select .dropdown .option .cn-route { font-size: 11px; color: var(--accent); background: var(--accent-light); padding: 1px 6px; border-radius: 3px; margin-left: 6px; }
+  .search-select .dropdown .no-results { padding: 14px; color: var(--text-muted); font-size: 13px; text-align: center; }
+
+  .mode-toggle {
+    display: flex; gap: 0; margin-bottom: 20px;
+    border-radius: 8px; overflow: hidden; border: 1px solid var(--border);
+  }
+  .mode-btn {
+    flex: 1; padding: 10px 16px; border: none;
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    font-size: 14px; font-weight: 600; cursor: pointer;
+    background: var(--input-bg); color: var(--text-muted); transition: all 0.2s;
+  }
+  .mode-btn.active { background: var(--accent); color: white; }
+  .mode-btn:hover:not(.active) { background: var(--accent-light); color: var(--accent); }
+  .mode-section { display: none; }
+  .mode-section.active { display: block; }
+
+  .result-card {
+    background: var(--result-bg); padding: 28px 32px; border-radius: 14px; color: white; margin-top: 10px;
+  }
+  .result-card .result-label { font-size: 13px; text-transform: uppercase; letter-spacing: 1px; opacity: 0.85; margin-bottom: 4px; }
+  .result-card .result-value { font-size: 38px; font-weight: 300; line-height: 1.2; }
+  .result-card .result-detail { font-size: 14px; opacity: 0.75; margin-top: 10px; line-height: 1.6; }
+  .result-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-top: 16px; }
+  .result-mini { background: rgba(255,255,255,0.14); padding: 14px 18px; border-radius: 10px; }
+  .result-mini .mini-label { font-size: 11px; text-transform: uppercase; letter-spacing: 0.8px; opacity: 0.7; }
+  .result-mini .mini-value { font-size: 22px; font-weight: 300; margin-top: 2px; }
+  @media (max-width: 640px) {
+    .result-grid { grid-template-columns: 1fr; }
+    .result-card .result-value { font-size: 28px; }
+    .calculator { padding: 20px; }
+    .page-header h1 { font-size: 28px; }
+  }
+  .note-box {
+    background: #fff8e1; border-left: 3px solid #f0a800; padding: 12px 16px;
+    border-radius: 0 8px 8px 0; font-size: 13px; color: #5a3e00; margin-top: 12px; line-height: 1.5;
+  }
+  .year-tabs { display: flex; gap: 4px; background: var(--input-bg); border-radius: 8px; padding: 4px; border: 1px solid var(--border); }
+  .year-tab {
+    flex: 1; padding: 8px 12px; border: none; background: none; border-radius: 6px;
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    font-size: 14px; font-weight: 600; cursor: pointer; color: var(--text-muted); transition: all 0.2s;
+  }
+  .year-tab.active { background: var(--accent); color: white; }
+  .year-tab:hover:not(.active) { background: var(--accent-light); color: var(--accent); }
+
+  /* Loading overlay */
+  .loading-overlay {
+    position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+    background: rgba(255,255,255,0.92); z-index: 9999;
+    display: flex; align-items: center; justify-content: center; flex-direction: column;
+  }
+  .loading-overlay.hidden { display: none; }
+  .loading-spinner {
+    width: 48px; height: 48px; border: 4px solid var(--accent-light);
+    border-top-color: var(--accent); border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .loading-text { margin-top: 16px; font-size: 16px; color: var(--text-muted); }
+  .loading-progress { margin-top: 8px; font-size: 13px; color: var(--accent); font-weight: 600; }
+</style>
+</head>
+<body>
+
+<!-- Loading overlay -->
+<div class="loading-overlay" id="loadingOverlay">
+  <div class="loading-spinner"></div>
+  <div class="loading-text">Načítání dat…</div>
+  <div class="loading-progress" id="loadingProgress">0 / 3</div>
+</div>
+
+<div class="page-header"><h1>CBAM – BCZ</h1></div>
+<div class="subtitle">
+  <p>Orientační kalkulačka nákladů Carbon Border Adjustment Mechanism. Hodnoty emisí a benchmarky se doplní automaticky. Můžete zadat přímo CN kód, nebo vyhledat položku podle Item Number z katalogu.</p>
+</div>
+
+<!-- SECTION 1: Product selection -->
+<div class="calculator">
+  <div class="section-title">Výběr produktu a původu</div>
+
+  <div class="grid-2">
+    <div class="form-group">
+      <label>Země původu</label>
+      <select id="country" onchange="onCountryChange()">
+        <option value="">— Vyberte zemi —</option>
+      </select>
+    </div>
+    <div class="form-group">
+      <label>Rok</label>
+      <div class="year-tabs">
+        <button class="year-tab active" data-year="2026" onclick="setYear(this)">2026</button>
+        <button class="year-tab" data-year="2027" onclick="setYear(this)">2027</button>
+        <button class="year-tab" data-year="2028" onclick="setYear(this)">2028+</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Mode toggle -->
+  <div class="mode-toggle">
+    <button class="mode-btn active" onclick="setMode('manual')">Ruční zadání CN kódu</button>
+    <button class="mode-btn" onclick="setMode('item')">Vyhledat podle Item Number</button>
+  </div>
+
+  <!-- MANUAL mode -->
+  <div class="mode-section active" id="mode-manual">
+    <div class="form-group">
+      <label>CN kód produktu (vyhledávejte podle kódu nebo popisu)</label>
+      <div class="search-select" id="cnSearchWrapper">
+        <input type="text" id="cnSearch" placeholder="Nejprve vyberte zemi…" disabled
+               oninput="filterCnCodes()" onfocus="openCnDropdown()" autocomplete="off">
+        <div class="dropdown" id="cnDropdown"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ITEM mode -->
+  <div class="mode-section" id="mode-item">
+    <div class="grid-2">
+      <div class="form-group">
+        <label>Item Number</label>
+        <div class="search-select" id="itemSearchWrapper">
+          <input type="text" id="itemSearch" placeholder="Zadejte číslo položky…"
+                 oninput="filterItems()" onfocus="openItemDropdown()" autocomplete="off">
+          <div class="dropdown" id="itemDropdown"></div>
+        </div>
+      </div>
+      <div class="form-group">
+        <label>Počet kusů</label>
+        <input type="number" id="itemQty" value="1000" min="1" oninput="onItemQtyChange()">
+      </div>
+    </div>
+    <div class="product-card" id="productCard">
+      <div class="pc-name" id="pcName"></div>
+      <div class="pc-detail" id="pcDetail"></div>
+    </div>
+  </div>
+</div>
+
+<!-- SECTION 2: Params -->
+<div class="calculator">
+  <div class="section-title">Parametry výpočtu</div>
+  <div class="grid-2">
+    <div class="form-group">
+      <label>Množství dovezeného zboží (tuny) <span class="info-badge green" id="qtyBadge" style="display:none">auto</span></label>
+      <input type="number" id="qty" value="1000" step="0.001" oninput="calculate()">
+      <div class="route-info" id="qtyInfo"></div>
+    </div>
+    <div class="form-group">
+      <label>Vykázané emise (tCO₂e / t) <span class="info-badge" id="emBadge" style="display:none">auto</span></label>
+      <input type="number" step="0.0001" id="emissions" value="" placeholder="Vyberte zemi a CN kód" oninput="calculate()">
+      <div class="route-info" id="emissionsInfo"></div>
+    </div>
+    <div class="form-group">
+      <label>CBAM Benchmark (tCO₂e / t) <span class="info-badge" id="bmBadge" style="display:none">auto</span></label>
+      <input type="number" step="0.0001" id="benchmark" value="" placeholder="Vyberte CN kód" oninput="calculate()">
+      <div class="route-info" id="benchmarkInfo"></div>
+    </div>
+    <div class="form-group">
+      <label>CBAM Faktor / Fáze</label>
+      <input type="number" step="0.001" id="factor" value="0.975" oninput="calculate()">
+    </div>
+    <div class="form-group">
+      <label>Cena povolenky EU ETS (€ / t CO₂)</label>
+      <input type="number" step="1" id="etsPrice" value="80" oninput="calculate()">
+    </div>
+    <div class="form-group">
+      <label>Cena uhlíku zaplacená v zahraničí (€ / t CO₂)</label>
+      <input type="number" step="1" id="paidAbroad" value="0" oninput="calculate()">
+    </div>
+  </div>
+
+  <div class="note-box" id="noteBox" style="display:none"></div>
+
+  <div class="result-card">
+    <div class="result-label">Celkové předpokládané náklady CBAM</div>
+    <div class="result-value" id="totalCost">0,00 €</div>
+    <div class="result-grid">
+      <div class="result-mini">
+        <div class="mini-label">Zpoplatnitelné emise / t</div>
+        <div class="mini-value" id="chargePerTonne">0</div>
+      </div>
+      <div class="result-mini">
+        <div class="mini-label">Náklad na tunu</div>
+        <div class="mini-value" id="costPerTonne">0 €</div>
+      </div>
+      <div class="result-mini">
+        <div class="mini-label">Počet certifikátů CBAM</div>
+        <div class="mini-value" id="certificates">0</div>
+      </div>
+      <div class="result-mini">
+        <div class="mini-label">Odpočet bezplatné alokace</div>
+        <div class="mini-value" id="freeAlloc">0</div>
+      </div>
+    </div>
+    <div class="result-detail" id="resultDetail"></div>
+  </div>
+</div>
+
+<script>
+// === DATA (loaded from external JSON files) ===
+let STD_VALUES = {};
+let BENCHMARKS = {};
+let ITEMS = {};
+
+let selectedYear = '2026';
+let currentCnEntries = [];
+let selectedCnIdx = -1;
+let currentMode = 'manual';
+let selectedItemKey = null;
+let dropdownHighlight = -1;
+
+// === LOAD DATA ===
+async function loadData() {
+  const progress = document.getElementById('loadingProgress');
+  let loaded = 0;
+
+  try {
+    progress.textContent = '1 / 3 — standardní hodnoty…';
+    const r1 = await fetch('std_values.json');
+    STD_VALUES = await r1.json();
+    loaded++;
+
+    progress.textContent = '2 / 3 — benchmarky…';
+    const r2 = await fetch('benchmarks.json');
+    BENCHMARKS = await r2.json();
+    loaded++;
+
+    progress.textContent = '3 / 3 — katalog položek…';
+    const r3 = await fetch('items.json');
+    ITEMS = await r3.json();
+    loaded++;
+
+    progress.textContent = 'Hotovo!';
+  } catch (e) {
+    progress.textContent = 'Chyba při načítání dat: ' + e.message;
+    console.error('Data load error:', e);
+    return;
+  }
+
+  document.getElementById('loadingOverlay').classList.add('hidden');
+  init();
+}
+
+// === INIT ===
+function init() {
+  const sel = document.getElementById('country');
+  Object.keys(STD_VALUES).sort((a,b) => a.localeCompare(b,'cs')).forEach(c => {
+    const o = document.createElement('option'); o.value = c; o.textContent = c; sel.appendChild(o);
+  });
+  setupDropdownKeys('cnSearch','cnDropdown');
+  setupDropdownKeys('itemSearch','itemDropdown');
+  document.addEventListener('click', e => {
+    if (!document.getElementById('cnSearchWrapper').contains(e.target)) closeDd('cnDropdown');
+    if (!document.getElementById('itemSearchWrapper').contains(e.target)) closeDd('itemDropdown');
+  });
+  calculate();
+}
+
+function setupDropdownKeys(inputId, ddId) {
+  document.getElementById(inputId).addEventListener('keydown', function(e) {
+    const dd = document.getElementById(ddId);
+    const opts = dd.querySelectorAll('.option');
+    if (e.key==='ArrowDown') { e.preventDefault(); dropdownHighlight=Math.min(dropdownHighlight+1,opts.length-1); hilite(opts); }
+    else if (e.key==='ArrowUp') { e.preventDefault(); dropdownHighlight=Math.max(dropdownHighlight-1,0); hilite(opts); }
+    else if (e.key==='Enter') { e.preventDefault(); if (dropdownHighlight>=0&&opts[dropdownHighlight]) opts[dropdownHighlight].click(); }
+    else if (e.key==='Escape') closeDd(ddId);
+  });
+}
+function hilite(opts) { opts.forEach((o,i)=>o.classList.toggle('highlighted',i===dropdownHighlight)); if(opts[dropdownHighlight]) opts[dropdownHighlight].scrollIntoView({block:'nearest'}); }
+function closeDd(id) { document.getElementById(id).classList.remove('open'); dropdownHighlight=-1; }
+
+// === MODE ===
+function setMode(mode) {
+  currentMode = mode;
+  document.querySelectorAll('.mode-btn').forEach((b,i)=>b.classList.toggle('active', (i===0&&mode==='manual')||(i===1&&mode==='item')));
+  document.getElementById('mode-manual').classList.toggle('active', mode==='manual');
+  document.getElementById('mode-item').classList.toggle('active', mode==='item');
+}
+
+// === YEAR ===
+function setYear(btn) {
+  document.querySelectorAll('.year-tab').forEach(b=>b.classList.remove('active'));
+  btn.classList.add('active');
+  selectedYear = btn.dataset.year;
+  if (selectedCnIdx >= 0) onCnSelected(selectedCnIdx);
+}
+
+// === COUNTRY ===
+function onCountryChange() {
+  const country = document.getElementById('country').value;
+  const si = document.getElementById('cnSearch');
+  selectedCnIdx = -1;
+  si.value = '';
+  if (!country||!STD_VALUES[country]) { si.placeholder='Nejprve vyberte zemi…'; si.disabled=true; currentCnEntries=[]; return; }
+  currentCnEntries = STD_VALUES[country];
+  si.disabled = false;
+  si.placeholder = 'Zadejte CN kód nebo popis produktu…';
+  clearAutoValues();
+  if (currentMode==='item' && selectedItemKey) onItemSelected(selectedItemKey);
+}
+
+// === CN SEARCH (manual mode) ===
+function formatCn(cn) {
+  if (cn.length===8) return cn.slice(0,4)+' '+cn.slice(4,6)+' '+cn.slice(6);
+  if (cn.length===6) return cn.slice(0,4)+' '+cn.slice(4);
+  return cn;
+}
+function openCnDropdown() { if(currentCnEntries.length===0)return; filterCnCodes(); document.getElementById('cnDropdown').classList.add('open'); }
+
+function filterCnCodes() {
+  const q = document.getElementById('cnSearch').value.toLowerCase().trim();
+  const dd = document.getElementById('cnDropdown');
+  dd.innerHTML=''; dropdownHighlight=-1;
+  const filtered=[];
+  currentCnEntries.forEach((e,idx)=>{
+    const s=(e[0]+' '+formatCn(e[0])+' '+e[1]+' '+(e[5]||'')).toLowerCase();
+    if(!q||s.includes(q)) filtered.push({entry:e,idx,cn:e[0],desc:e[1],route:e[5]||'',cnF:formatCn(e[0])});
+  });
+  if(!filtered.length){ dd.innerHTML='<div class="no-results">Žádné výsledky</div>'; dd.classList.add('open'); return; }
+  filtered.slice(0,100).forEach(it=>{
+    const d=document.createElement('div'); d.className='option';
+    d.innerHTML='<span class="cn-code">'+it.cnF+'</span><span class="cn-desc">'+it.desc+'</span>'+(it.route?'<span class="cn-route">'+it.route+'</span>':'');
+    d.onclick=()=>selectCn(it); dd.appendChild(d);
+  });
+  if(filtered.length>100) dd.innerHTML+='<div class="no-results">… dalších '+(filtered.length-100)+' výsledků</div>';
+  dd.classList.add('open');
+}
+function selectCn(it) {
+  document.getElementById('cnSearch').value=it.cnF+' — '+it.desc+(it.route?' '+it.route:'');
+  closeDd('cnDropdown'); selectedCnIdx=it.idx; onCnSelected(it.idx);
+}
+
+// === ITEM SEARCH ===
+function openItemDropdown() { filterItems(); document.getElementById('itemDropdown').classList.add('open'); }
+
+function filterItems() {
+  const q = document.getElementById('itemSearch').value.trim().toLowerCase();
+  const dd = document.getElementById('itemDropdown');
+  dd.innerHTML=''; dropdownHighlight=-1;
+  if(!q||q.length<2){ dd.innerHTML='<div class="no-results">Zadejte alespoň 2 znaky…</div>'; dd.classList.add('open'); return; }
+  const results=[];
+  for(const [k,v] of Object.entries(ITEMS)){
+    if(results.length>=80) break;
+    if(k.toLowerCase().includes(q) || v[0].toLowerCase().includes(q)) results.push({key:k,name:v[0],weight:v[1],cn8:v[2]});
+  }
+  if(!results.length){ dd.innerHTML='<div class="no-results">Žádné výsledky pro "'+q+'"</div>'; dd.classList.add('open'); return; }
+  results.forEach(it=>{
+    const d=document.createElement('div'); d.className='option';
+    d.innerHTML='<span class="cn-code">'+it.key+'</span><span class="cn-desc">'+it.name+'</span>';
+    d.onclick=()=>{ document.getElementById('itemSearch').value=it.key+' — '+it.name; closeDd('itemDropdown'); selectedItemKey=it.key; onItemSelected(it.key); };
+    dd.appendChild(d);
+  });
+  dd.classList.add('open');
+}
+
+function onItemSelected(key) {
+  const item = ITEMS[key];
+  if(!item) return;
+  const name = item[0];
+  const weightKg = item[1];
+  const cn8 = item[2];
+
+  const card = document.getElementById('productCard');
+  card.classList.add('visible');
+  document.getElementById('pcName').textContent = name;
+
+  const pcs = parseFloat(document.getElementById('itemQty').value)||0;
+  const tonnes = (pcs * weightKg) / 1000;
+  const qtyInput = document.getElementById('qty');
+  qtyInput.value = tonnes.toFixed(4);
+  qtyInput.classList.add('auto-filled-green');
+  document.getElementById('qtyBadge').style.display='inline-block';
+  document.getElementById('qtyInfo').textContent = pcs.toLocaleString('cs-CZ')+' ks × '+weightKg+' kg = '+(pcs*weightKg).toFixed(2)+' kg = '+tonnes.toFixed(4)+' t';
+
+  document.getElementById('pcDetail').innerHTML =
+    'Hmotnost: <span>'+weightKg+' kg/ks</span> · CN kód: <span>'+formatCn(cn8)+'</span> · Celkem: <span>'+tonnes.toFixed(4)+' t</span>';
+
+  const country = document.getElementById('country').value;
+  if(!country||!STD_VALUES[country]){
+    document.getElementById('noteBox').textContent='Vyberte zemi původu pro doplnění emisí a benchmarku.';
+    document.getElementById('noteBox').style.display='block';
+    calculate(); return;
+  }
+
+  const entries = STD_VALUES[country];
+  let bestIdx = -1;
+  let bestMatchLen = 0;
+
+  entries.forEach((e,idx)=>{
+    const eCn = e[0];
+    const pfx = commonPrefix(eCn, cn8);
+    if(pfx > bestMatchLen) { bestMatchLen=pfx; bestIdx=idx; }
+  });
+
+  if(bestIdx>=0 && bestMatchLen>=4) {
+    selectedCnIdx = bestIdx;
+    onCnSelected(bestIdx);
+    const matchedCn = entries[bestIdx][0];
+    if(matchedCn !== cn8) {
+      const nb = document.getElementById('noteBox');
+      nb.textContent='Přiřazený CN kód ze standardních hodnot: '+formatCn(matchedCn)+' (nejbližší shoda pro '+formatCn(cn8)+')';
+      nb.style.display='block';
+    }
+  } else {
+    document.getElementById('noteBox').textContent='Pro CN kód '+formatCn(cn8)+' nebyla nalezena odpovídající standardní hodnota v zemi '+country+'.';
+    document.getElementById('noteBox').style.display='block';
+    fillBenchmarkOnly(cn8, '');
+  }
+  calculate();
+}
+
+function onItemQtyChange() {
+  if(selectedItemKey) onItemSelected(selectedItemKey);
+}
+
+function fillBenchmarkOnly(cn, route) {
+  const bmInput = document.getElementById('benchmark');
+  const bmBadge = document.getElementById('bmBadge');
+  const bmInfo = document.getElementById('benchmarkInfo');
+  bmInput.classList.remove('auto-filled'); bmBadge.style.display='none'; bmInfo.textContent='';
+  let bmResult = findBenchmarkForCn(cn, route);
+  if(bmResult){
+    bmInput.value=bmResult.value; bmInput.classList.add('auto-filled'); bmBadge.style.display='inline-block';
+    let t='Benchmark Column B: '+bmResult.value+' tCO₂e/t';
+    if(bmResult.route) t+=' (trasa '+bmResult.route+')';
+    if(bmResult.desc) t+=' — '+bmResult.desc;
+    if(bmResult.matchedCn&&bmResult.matchedCn!==cn) t+=' [kód '+formatCn(bmResult.matchedCn)+']';
+    bmInfo.textContent=t;
+  }
+}
+
+// === CN SELECTED -> fill emissions + benchmark ===
+function onCnSelected(idx) {
+  const country = document.getElementById('country').value;
+  if(!country||!STD_VALUES[country]) return;
+  const entry = STD_VALUES[country][idx];
+  const cn=entry[0], stdRoute=(entry[5]||'').trim();
+  const yearIdx = selectedYear==='2026'?2:selectedYear==='2027'?3:4;
+  const val = entry[yearIdx];
+
+  const emInput=document.getElementById('emissions'), bmInput=document.getElementById('benchmark');
+  const emBadge=document.getElementById('emBadge'), bmBadge=document.getElementById('bmBadge');
+  const emInfo=document.getElementById('emissionsInfo'), bmInfo=document.getElementById('benchmarkInfo');
+  const noteBox=document.getElementById('noteBox');
+
+  emInput.classList.remove('auto-filled'); bmInput.classList.remove('auto-filled');
+  emBadge.style.display='none'; bmBadge.style.display='none';
+  emInfo.textContent=''; bmInfo.textContent=''; noteBox.style.display='none';
+
+  if(val!==null&&val!==undefined){
+    emInput.value=val; emInput.classList.add('auto-filled'); emBadge.style.display='inline-block';
+    const mp=selectedYear==='2026'?'10%':selectedYear==='2027'?'20%':'30%';
+    emInfo.textContent='Standardní hodnota pro '+country+' ('+selectedYear+', včetně '+mp+' mark-up)'+(stdRoute?', výrobní trasa '+stdRoute:'');
+  }
+
+  let bmResult = findBenchmarkForCn(cn, stdRoute);
+  if(bmResult){
+    bmInput.value=bmResult.value; bmInput.classList.add('auto-filled'); bmBadge.style.display='inline-block';
+    let t='Benchmark Column B: '+bmResult.value+' tCO₂e/t';
+    if(bmResult.route) t+=' (trasa '+bmResult.route+')';
+    if(bmResult.desc) t+=' — '+bmResult.desc;
+    if(bmResult.matchedCn&&bmResult.matchedCn!==cn) t+=' [kód '+formatCn(bmResult.matchedCn)+']';
+    bmInfo.textContent=t;
+  } else {
+    noteBox.textContent='Pro CN kód '+formatCn(cn)+' nebyl nalezen odpovídající benchmark. Hodnotu zadejte ručně.';
+    noteBox.style.display='block';
+  }
+  calculate();
+}
+
+// === BENCHMARK LOOKUP ===
+function findBenchmarkForCn(cn, stdRoute) {
+  if(BENCHMARKS[cn]){ let m=matchRoute(BENCHMARKS[cn],stdRoute); if(m){m.matchedCn=cn;return m;} }
+  let cands=[];
+  for(const bmCn of Object.keys(BENCHMARKS)){
+    if(bmCn.startsWith(cn)||cn.startsWith(bmCn)) cands.push(bmCn);
+  }
+  if(!cands.length) return null;
+  cands.sort((a,b)=>commonPrefix(b,cn)-commonPrefix(a,cn));
+  for(const bmCn of cands){ let m=matchRoute(BENCHMARKS[bmCn],stdRoute); if(m){m.matchedCn=bmCn;return m;} }
+  const f=BENCHMARKS[cands[0]][0];
+  return {value:f[0],route:f[1],desc:f[2],matchedCn:cands[0]};
+}
+
+function matchRoute(entries, stdRoute) {
+  if(!entries||!entries.length) return null;
+  if(entries.length===1) return {value:entries[0][0],route:entries[0][1],desc:entries[0][2]};
+  const cs=(stdRoute||'').replace(/[()]/g,'').trim().toUpperCase();
+  if(cs){ for(const e of entries){ const cb=(e[1]||'').replace(/[()]/g,'').trim().toUpperCase(); if(cb===cs) return {value:e[0],route:e[1],desc:e[2]}; } }
+  const wd=entries.find(e=>e[2]);
+  return wd?{value:wd[0],route:wd[1],desc:wd[2]}:{value:entries[0][0],route:entries[0][1],desc:entries[0][2]};
+}
+
+function commonPrefix(a,b){ let i=0; while(i<a.length&&i<b.length&&a[i]===b[i])i++; return i; }
+
+function clearAutoValues() {
+  ['emissions','benchmark'].forEach(id=>{ document.getElementById(id).value=''; document.getElementById(id).classList.remove('auto-filled'); });
+  document.getElementById('emBadge').style.display='none';
+  document.getElementById('bmBadge').style.display='none';
+  document.getElementById('emissionsInfo').textContent='';
+  document.getElementById('benchmarkInfo').textContent='';
+  document.getElementById('noteBox').style.display='none';
+  calculate();
+}
+
+// === CALCULATION ===
+function calculate() {
+  const qty=parseFloat(document.getElementById('qty').value)||0;
+  const emissions=parseFloat(document.getElementById('emissions').value)||0;
+  const benchmark=parseFloat(document.getElementById('benchmark').value)||0;
+  const factor=parseFloat(document.getElementById('factor').value)||0;
+  const etsPrice=parseFloat(document.getElementById('etsPrice').value)||0;
+  const paidAbroad=parseFloat(document.getElementById('paidAbroad').value)||0;
+
+  const freeAlloc=benchmark*factor;
+  let chEm=emissions-freeAlloc; if(chEm<0)chEm=0;
+  let cpt=(chEm*etsPrice)-paidAbroad; if(cpt<0)cpt=0;
+  const total=qty*cpt;
+  const certs=qty*chEm;
+
+  document.getElementById('totalCost').textContent=fmt(total)+' €';
+  document.getElementById('chargePerTonne').textContent=chEm.toFixed(4)+' tCO₂e';
+  document.getElementById('costPerTonne').textContent=fmt(cpt)+' €';
+  document.getElementById('certificates').textContent=fmt(certs,2);
+  document.getElementById('freeAlloc').textContent=freeAlloc.toFixed(4)+' tCO₂e/t';
+
+  document.getElementById('resultDetail').textContent=
+    'Emise '+emissions.toFixed(4)+' − (benchmark '+benchmark.toFixed(4)+' × faktor '+factor+') = '+
+    chEm.toFixed(4)+' tCO₂e/t × '+etsPrice+' € = '+(chEm*etsPrice).toFixed(2)+' €/t'+
+    (paidAbroad>0?' − '+paidAbroad+' € zaplaceno v zahraničí':'')+
+    ' → '+fmt(cpt)+' €/t × '+qty.toLocaleString('cs-CZ')+' t = '+fmt(total)+' €';
+}
+
+function fmt(n,d=2){ return n.toLocaleString('cs-CZ',{minimumFractionDigits:d,maximumFractionDigits:d}); }
+
+// === START ===
+window.onload = loadData;
+</script>
+</body>
+</html>
