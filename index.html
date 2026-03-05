@@ -436,7 +436,7 @@ function filterCnCodes(){
     d.innerHTML='<span class="cn-code">'+it.cnF+'</span><span class="cn-desc">'+it.desc+'</span>'+(it.route?'<span class="cn-route">'+it.route+'</span>':'');
     d.onclick=()=>selectCn(it);dd.appendChild(d);
   });
-  if(f.length>100)dd.innerHTML+='<div class="no-results">… and '+(f.length-100)+' more results</div>';
+  if(f.length>100){const m=document.createElement('div');m.className='no-results';m.textContent='… and '+(f.length-100)+' more results. Type to narrow down.';dd.appendChild(m);}
   dd.classList.add('open');
 }
 function selectCn(it){
