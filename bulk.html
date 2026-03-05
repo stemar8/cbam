@@ -1,0 +1,613 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CBAM - BCZ Bulk Calculator</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<style>
+  :root {
+    --bg: #ffffff;
+    --card: #ffffff;
+    --accent: #0066cc;
+    --accent-hover: #004c99;
+    --accent-light: #e8f0fa;
+    --accent-dark: #003d7a;
+    --text: #1a1a1a;
+    --text-muted: #5c5c5c;
+    --border: #d6d3ce;
+    --input-bg: #fafaf9;
+    --result-bg: #0066cc;
+    --shadow: 0 2px 20px rgba(0,0,0,0.06);
+    --green: #1a8a3f;
+    --green-light: #e6f5eb;
+    --red: #cc3333;
+    --red-light: #fdeaea;
+    --orange: #e08a00;
+    --orange-light: #fff8e1;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+    padding: 20px;
+  }
+  .page-header { max-width: 1100px; margin: 30px auto 8px; padding: 0 10px; }
+  .page-header h1 { font-size: 38px; font-weight: 700; color: var(--accent-dark); letter-spacing: -0.5px; }
+  .subtitle { max-width: 1100px; margin: 0 auto 20px; padding: 0 10px; }
+  .subtitle p { font-size: 15px; color: var(--text-muted); line-height: 1.5; }
+  .card {
+    background: var(--card); padding: 36px; border-radius: 16px;
+    max-width: 1100px; margin: 0 auto 20px;
+    box-shadow: var(--shadow); border: 1px solid rgba(0,0,0,0.04);
+  }
+  .section-title {
+    font-size: 22px; font-weight: 300; color: var(--accent-dark);
+    margin-bottom: 20px; padding-bottom: 12px; border-bottom: 2px solid var(--accent-light);
+  }
+  .grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 16px; }
+  @media (max-width: 700px) { .grid-3 { grid-template-columns: 1fr; } }
+  .form-group { margin-bottom: 16px; }
+  label {
+    display: block; font-weight: 600; margin-bottom: 6px;
+    font-size: 13px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.4px;
+  }
+  select, input[type="number"] {
+    width: 100%; padding: 11px 14px; border: 1px solid var(--border); border-radius: 8px;
+    font-size: 15px; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    background: var(--input-bg); color: var(--text); transition: border-color 0.2s, box-shadow 0.2s;
+  }
+  select {
+    appearance: none; -webkit-appearance: none;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%235c5c5c' stroke-width='1.5' fill='none'/%3E%3C/svg%3E");
+    background-repeat: no-repeat; background-position: right 14px center; padding-right: 36px; cursor: pointer;
+  }
+  select:focus, input:focus { border-color: var(--accent); outline: none; box-shadow: 0 0 0 3px rgba(0,102,204,0.1); }
+
+  /* Upload area */
+  .upload-area {
+    border: 2px dashed var(--border); border-radius: 12px; padding: 40px;
+    text-align: center; cursor: pointer; transition: all 0.2s;
+    background: var(--input-bg);
+  }
+  .upload-area:hover, .upload-area.drag-over {
+    border-color: var(--accent); background: var(--accent-light);
+  }
+  .upload-area svg { width: 48px; height: 48px; color: var(--accent); margin-bottom: 12px; }
+  .upload-area .upload-title { font-size: 16px; font-weight: 600; color: var(--text); margin-bottom: 4px; }
+  .upload-area .upload-sub { font-size: 13px; color: var(--text-muted); }
+  .upload-area input[type="file"] { display: none; }
+  .file-info {
+    display: none; align-items: center; gap: 12px; padding: 14px 18px;
+    background: var(--green-light); border: 1px solid var(--green); border-radius: 10px; margin-top: 12px;
+  }
+  .file-info.visible { display: flex; }
+  .file-info .fi-name { font-weight: 600; font-size: 14px; color: var(--green); flex: 1; }
+  .file-info .fi-remove {
+    background: none; border: none; color: var(--red); cursor: pointer;
+    font-size: 13px; font-weight: 600; padding: 4px 8px; border-radius: 4px;
+  }
+  .file-info .fi-remove:hover { background: var(--red-light); }
+
+  /* Template download */
+  .template-link {
+    display: inline-flex; align-items: center; gap: 6px;
+    font-size: 13px; color: var(--accent); font-weight: 600; cursor: pointer;
+    text-decoration: none; margin-top: 12px;
+  }
+  .template-link:hover { text-decoration: underline; }
+  .template-link svg { width: 16px; height: 16px; }
+
+  /* Buttons */
+  .btn {
+    display: inline-flex; align-items: center; gap: 8px;
+    padding: 12px 24px; border-radius: 8px; font-size: 15px; font-weight: 600;
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    cursor: pointer; border: none; transition: all 0.2s;
+  }
+  .btn-primary { background: var(--accent); color: white; }
+  .btn-primary:hover { background: var(--accent-hover); }
+  .btn-primary:disabled { background: #aaa; cursor: not-allowed; }
+  .btn-outline {
+    background: white; color: var(--accent); border: 1px solid var(--accent);
+  }
+  .btn-outline:hover { background: var(--accent-light); }
+  .btn-reset-b {
+    background: var(--input-bg); color: var(--text-muted); border: 1px solid var(--border);
+  }
+  .btn-reset-b:hover { background: #fee; border-color: #d44; color: #c33; }
+  .btn svg { width: 18px; height: 18px; }
+  .btn-row { display: flex; gap: 12px; flex-wrap: wrap; margin-top: 20px; }
+
+  /* Results table */
+  .results-section { display: none; }
+  .results-section.visible { display: block; }
+  .table-wrap { overflow-x: auto; margin-top: 16px; }
+  table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  thead th {
+    text-align: left; padding: 10px 12px; background: var(--accent-light);
+    color: var(--accent-dark); font-weight: 700; text-transform: uppercase;
+    letter-spacing: 0.3px; font-size: 11px; white-space: nowrap;
+    position: sticky; top: 0;
+  }
+  tbody td {
+    padding: 9px 12px; border-bottom: 1px solid #f0f0f0;
+  }
+  tbody tr:hover { background: #fafafa; }
+  .mono { font-family: 'Consolas','Courier New',monospace; }
+  .text-right { text-align: right; }
+  .text-muted { color: var(--text-muted); }
+  .status-ok { color: var(--green); font-weight: 600; }
+  .status-warn { color: var(--orange); font-weight: 600; }
+  .status-err { color: var(--red); font-weight: 600; }
+
+  /* Summary cards */
+  .summary-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; margin-bottom: 20px; }
+  @media (max-width: 700px) { .summary-grid { grid-template-columns: 1fr 1fr; } }
+  .summary-card {
+    background: var(--result-bg); color: white; padding: 20px; border-radius: 12px;
+  }
+  .summary-card .sc-label { font-size: 11px; text-transform: uppercase; letter-spacing: 0.8px; opacity: 0.8; }
+  .summary-card .sc-value { font-size: 28px; font-weight: 300; margin-top: 4px; }
+  .summary-card.alt { background: var(--accent-dark); }
+
+  /* Warnings */
+  .warn-box {
+    background: var(--orange-light); border-left: 3px solid var(--orange);
+    padding: 12px 16px; border-radius: 0 8px 8px 0; font-size: 13px; color: #5a3e00;
+    margin-bottom: 16px; line-height: 1.5;
+  }
+
+  /* Loading */
+  .loading-overlay {
+    position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+    background: rgba(255,255,255,0.92); z-index: 9999;
+    display: flex; align-items: center; justify-content: center; flex-direction: column;
+  }
+  .loading-overlay.hidden { display: none; }
+  .loading-spinner {
+    width: 48px; height: 48px; border: 4px solid var(--accent-light);
+    border-top-color: var(--accent); border-radius: 50%; animation: spin 0.8s linear infinite;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .loading-text { margin-top: 16px; font-size: 16px; color: var(--text-muted); }
+  .loading-progress { margin-top: 8px; font-size: 13px; color: var(--accent); font-weight: 600; }
+
+  .back-link {
+    display: inline-flex; align-items: center; gap: 6px; font-size: 14px;
+    color: var(--accent); text-decoration: none; font-weight: 600;
+    max-width: 1100px; margin: 10px auto 0; padding: 0 10px;
+  }
+  .back-link:hover { text-decoration: underline; }
+  .back-link svg { width: 16px; height: 16px; }
+</style>
+</head>
+<body>
+
+<div class="loading-overlay" id="loadingOverlay">
+  <div class="loading-spinner"></div>
+  <div class="loading-text">Loading data…</div>
+  <div class="loading-progress" id="loadingProgress">0 / 3</div>
+</div>
+
+<a class="back-link" href="index.html">
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 12H5M12 19l-7-7 7-7"/></svg>
+  Back to single item calculator
+</a>
+
+<div class="page-header"><h1>CBAM – BCZ Bulk Calculator</h1></div>
+<div class="subtitle">
+  <p>Upload an Excel file with item numbers, quantities and country codes to calculate CBAM costs for multiple items at once.</p>
+</div>
+
+<!-- SETTINGS -->
+<div class="card">
+  <div class="section-title">Settings</div>
+  <div class="grid-3">
+    <div class="form-group">
+      <label>Year</label>
+      <select id="year">
+        <option value="2026" selected>2026 (10% mark-up)</option>
+        <option value="2027">2027 (20% mark-up)</option>
+        <option value="2028">2028+ (30% mark-up)</option>
+      </select>
+    </div>
+    <div class="form-group">
+      <label>EU ETS allowance price (€ / t CO₂)</label>
+      <input type="number" id="etsPrice" value="90" step="1">
+    </div>
+    <div class="form-group">
+      <label>CBAM Factor / Phase</label>
+      <input type="number" id="factor" value="0.975" step="0.001">
+    </div>
+  </div>
+</div>
+
+<!-- UPLOAD -->
+<div class="card">
+  <div class="section-title">Upload File</div>
+  <div class="upload-area" id="uploadArea" onclick="document.getElementById('fileInput').click()">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M17 8l-5-5-5 5M12 3v12"/></svg>
+    <div class="upload-title">Click to upload or drag &amp; drop</div>
+    <div class="upload-sub">Excel file (.xlsx) — columns: Item Code, Quantity, Origin (ISO 3-letter code)</div>
+    <input type="file" id="fileInput" accept=".xlsx,.xls,.csv" onchange="handleFile(this)">
+  </div>
+  <div class="file-info" id="fileInfo">
+    <span class="fi-name" id="fileName"></span>
+    <button class="fi-remove" onclick="clearFile()">Remove</button>
+  </div>
+  <a class="template-link" href="#" onclick="downloadTemplate(); return false;">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M7 10l5 5 5-5M12 15V3"/></svg>
+    Download template (.xlsx)
+  </a>
+  <div class="btn-row">
+    <button class="btn btn-primary" id="calcBtn" disabled onclick="runCalculation()">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 11.08V12a10 10 0 11-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
+      Calculate CBAM
+    </button>
+    <button class="btn btn-reset-b" onclick="resetAll()">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"/></svg>
+      Reset
+    </button>
+  </div>
+</div>
+
+<!-- RESULTS -->
+<div class="card results-section" id="resultsSection">
+  <div class="section-title">Results</div>
+  <div id="warnings"></div>
+  <div class="summary-grid" id="summaryGrid"></div>
+  <div class="btn-row" style="margin-top:0;margin-bottom:16px;">
+    <button class="btn btn-outline" onclick="downloadResults()">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M7 10l5 5 5-5M12 15V3"/></svg>
+      Download results (.xlsx)
+    </button>
+  </div>
+  <div class="table-wrap" style="max-height:600px;overflow-y:auto;">
+    <table>
+      <thead id="tHead"></thead>
+      <tbody id="tBody"></tbody>
+    </table>
+  </div>
+</div>
+
+<script>
+let STD_VALUES={},BENCHMARKS={},ITEMS={};
+let uploadedRows=[];
+let resultRows=[];
+
+const ISO3={
+"ALB":"Albania","DZA":"Algeria","AGO":"Angola","ARG":"Argentina","ARM":"Armenia","AUS":"Australia",
+"AZE":"Azerbaijan","BHR":"Bahrain","BGD":"Bangladesh","BLR":"Belarus","BEN":"Benin","BOL":"Bolivia",
+"BIH":"Bosnia and Herzegovina","BRA":"Brazil","BRN":"Brunei","KHM":"Cambodia","CMR":"Cameroon",
+"CAN":"Canada","CHL":"Chile","CHN":"China","COL":"Colombia","COG":"Congo","CRI":"Costa Rica",
+"CUB":"Cuba","CUW":"Curaçao","CIV":"Côte d'Ivoire","COD":"Democratic Republic of the Cong",
+"DOM":"Dominican Republic","ECU":"Ecuador","EGY":"Egypt","SLV":"El Salvador","GNQ":"Equatorial Guinea",
+"ERI":"Eritrea","SWZ":"Eswatini","ETH":"Ethiopia","GAB":"Gabon","GEO":"Georgia","GHA":"Ghana",
+"GTM":"Guatemala","HTI":"Haiti","HND":"Honduras","HKG":"Hong Kong","IND":"India","IDN":"Indonesia",
+"IRN":"Iran","IRQ":"Iraq","ISR":"Israel","JAM":"Jamaica","JPN":"Japan","JOR":"Jordan",
+"KAZ":"Kazakhstan","KEN":"Kenya","KWT":"Kuwait","KGZ":"Kyrgyzstan","LAO":"Laos","LBN":"Lebanon",
+"LBY":"Libya","MDG":"Madagascar","MYS":"Malaysia","MLI":"Mali","MRT":"Mauritania","MUS":"Mauritius",
+"MEX":"Mexico","MDA":"Moldova","MNG":"Mongolia","MNE":"Montenegro","MAR":"Morocco","MOZ":"Mozambique",
+"MMR":"Myanmar_Burma","NAM":"Namibia","NPL":"Nepal","NZL":"New Zealand","NIC":"Nicaragua","NER":"Niger",
+"NGA":"Nigeria","PRK":"North Korea","MKD":"North Macedonia","OMN":"Oman","PAK":"Pakistan","PAN":"Panama",
+"PNG":"Papua New Guinea","PRY":"Paraguay","PER":"Peru","PHL":"Philippines","QAT":"Qatar","RUS":"Russia",
+"RWA":"Rwanda","SAU":"Saudi Arabia","SEN":"Senegal","SRB":"Serbia","SLE":"Sierra Leone","SGP":"Singapore",
+"ZAF":"South Africa","KOR":"South Korea","LKA":"Sri Lanka","SDN":"Sudan","SUR":"Suriname","SYR":"Syria",
+"TWN":"Taiwan","TJK":"Tajikistan","TZA":"Tanzania","THA":"Thailand","TGO":"Togo","TTO":"Trinidad and Tobago",
+"TUN":"Tunisia","TKM":"Turkmenistan","TUR":"Türkiye","UGA":"Uganda","UKR":"Ukraine","ARE":"United Arab Emirates",
+"GBR":"United Kingdom","USA":"United States","URY":"Uruguay","UZB":"Uzbekistan","VEN":"Venezuela",
+"VNM":"Vietnam","YEM":"Yemen","ZMB":"Zambia","ZWE":"Zimbabwe"
+};
+
+// === LOAD DATA ===
+async function loadData(){
+  const p=document.getElementById('loadingProgress');
+  try{
+    p.textContent='1 / 3 — default values…';
+    STD_VALUES=await(await fetch('std_values.json')).json();
+    p.textContent='2 / 3 — benchmarks…';
+    BENCHMARKS=await(await fetch('benchmarks.json')).json();
+    p.textContent='3 / 3 — item catalogue…';
+    ITEMS=await(await fetch('items.json')).json();
+    p.textContent='Done!';
+  }catch(e){p.textContent='Error: '+e.message;return;}
+  document.getElementById('loadingOverlay').classList.add('hidden');
+}
+
+// === DRAG & DROP ===
+const ua=document.getElementById('uploadArea');
+ua.addEventListener('dragover',e=>{e.preventDefault();ua.classList.add('drag-over');});
+ua.addEventListener('dragleave',()=>ua.classList.remove('drag-over'));
+ua.addEventListener('drop',e=>{e.preventDefault();ua.classList.remove('drag-over');if(e.dataTransfer.files.length)processFile(e.dataTransfer.files[0]);});
+
+function handleFile(input){if(input.files.length)processFile(input.files[0]);}
+
+function processFile(file){
+  const reader=new FileReader();
+  reader.onload=function(e){
+    const data=new Uint8Array(e.target.result);
+    const wb=XLSX.read(data,{type:'array'});
+    const ws=wb.Sheets[wb.SheetNames[0]];
+    const json=XLSX.utils.sheet_to_json(ws,{header:1});
+    uploadedRows=[];
+    const startRow=json.length>0&&typeof json[0][0]==='string'&&isNaN(json[0][0])?1:0;
+    for(let i=startRow;i<json.length;i++){
+      const r=json[i];
+      if(!r||!r[0])continue;
+      uploadedRows.push({
+        itemCode:String(r[0]).trim(),
+        qty:parseFloat(r[1])||0,
+        origin:String(r[2]||'').trim().toUpperCase()
+      });
+    }
+    document.getElementById('fileName').textContent=file.name+' — '+uploadedRows.length+' rows';
+    document.getElementById('fileInfo').classList.add('visible');
+    document.getElementById('calcBtn').disabled=false;
+    document.getElementById('resultsSection').classList.remove('visible');
+  };
+  reader.readAsArrayBuffer(file);
+}
+
+function clearFile(){
+  uploadedRows=[];resultRows=[];
+  document.getElementById('fileInfo').classList.remove('visible');
+  document.getElementById('fileInput').value='';
+  document.getElementById('calcBtn').disabled=true;
+  document.getElementById('resultsSection').classList.remove('visible');
+}
+
+// === CALCULATION ===
+function runCalculation(){
+  if(!uploadedRows.length)return;
+  const year=document.getElementById('year').value;
+  const ets=parseFloat(document.getElementById('etsPrice').value)||90;
+  const factor=parseFloat(document.getElementById('factor').value)||0.975;
+  const yearIdx=year==='2026'?2:year==='2027'?3:4;
+
+  resultRows=[];
+  let warnings=[];
+  let totalCost=0, totalTonnes=0, totalCerts=0, itemCount=0;
+
+  for(const row of uploadedRows){
+    const res={
+      itemCode:row.itemCode,
+      qty:row.qty,
+      originCode:row.origin,
+      country:'',
+      productName:'',
+      cn8:'',
+      weightKg:0,
+      tonnes:0,
+      emissions:0,
+      benchmark:0,
+      freeAlloc:0,
+      chargeableEm:0,
+      costPerTonne:0,
+      totalCost:0,
+      status:'OK',
+      note:''
+    };
+
+    // Resolve country
+    const country=ISO3[row.origin];
+    if(!country){res.status='ERROR';res.note='Unknown country code: '+row.origin;resultRows.push(res);continue;}
+    res.country=country;
+
+    // Resolve item
+    const item=ITEMS[row.itemCode];
+    if(!item){res.status='ERROR';res.note='Item not found in catalogue';resultRows.push(res);continue;}
+    res.productName=item[0];
+    res.weightKg=item[1];
+    res.cn8=item[2];
+    res.tonnes=(row.qty*item[1])/1000;
+
+    // Resolve emissions
+    const stdEntries=STD_VALUES[country];
+    if(!stdEntries){res.status='WARN';res.note='No default values for '+country;resultRows.push(res);continue;}
+
+    let bestIdx=-1,bestLen=0;
+    stdEntries.forEach((e,idx)=>{const p=cpfx(e[0],res.cn8);if(p>bestLen){bestLen=p;bestIdx=idx;}});
+
+    if(bestIdx>=0&&bestLen>=4){
+      const entry=stdEntries[bestIdx];
+      const val=entry[yearIdx];
+      const stdRoute=(entry[5]||'').trim();
+      if(val!==null&&val!==undefined)res.emissions=val;
+      else{res.status='WARN';res.note='No emission value for year '+year;}
+
+      // Benchmark
+      const bm=findBm(res.cn8,stdRoute);
+      if(bm)res.benchmark=bm.value;
+      else{if(res.status==='OK')res.status='WARN';res.note+=(res.note?' | ':'')+'No benchmark found';}
+
+      if(entry[0]!==res.cn8){
+        res.note+=(res.note?' | ':'')+'Matched CN: '+entry[0];
+      }
+    }else{
+      res.status='WARN';
+      res.note='No matching CN code in '+country+' for '+res.cn8;
+      const bm=findBm(res.cn8,'');
+      if(bm)res.benchmark=bm.value;
+    }
+
+    // Calculate
+    res.freeAlloc=res.benchmark*factor;
+    res.chargeableEm=Math.max(0,res.emissions-res.freeAlloc);
+    res.costPerTonne=Math.max(0,res.chargeableEm*ets);
+    res.totalCost=res.tonnes*res.costPerTonne;
+
+    totalCost+=res.totalCost;
+    totalTonnes+=res.tonnes;
+    totalCerts+=res.tonnes*res.chargeableEm;
+    itemCount++;
+    resultRows.push(res);
+  }
+
+  // Show warnings
+  const warnCount=resultRows.filter(r=>r.status==='WARN').length;
+  const errCount=resultRows.filter(r=>r.status==='ERROR').length;
+  const warnDiv=document.getElementById('warnings');
+  warnDiv.innerHTML='';
+  if(warnCount||errCount){
+    warnDiv.innerHTML='<div class="warn-box">'+(errCount?errCount+' row(s) with errors (item not found or unknown country). ':'')+
+      (warnCount?warnCount+' row(s) with warnings (missing emissions or benchmarks). ':'')+'Check the Status column below for details.</div>';
+  }
+
+  // Summary
+  document.getElementById('summaryGrid').innerHTML=
+    sc('Total CBAM cost',fmt(totalCost)+' €','')+
+    sc('Items processed',itemCount+' / '+uploadedRows.length,'alt')+
+    sc('Total weight',totalTonnes.toFixed(2)+' t','alt')+
+    sc('CBAM certificates',fmt(totalCerts,2),'');
+
+  // Table
+  document.getElementById('tHead').innerHTML='<tr>'+
+    ['#','Item Code','Product Name','Origin','CN Code','Qty (pcs)','Weight (t)','Emissions','Benchmark','Free Alloc.','Chargeable','Cost/t','Total Cost','Status','Note']
+    .map(h=>'<th>'+h+'</th>').join('')+'</tr>';
+
+  const tbody=document.getElementById('tBody');
+  tbody.innerHTML='';
+  resultRows.forEach((r,i)=>{
+    const cls=r.status==='ERROR'?'status-err':r.status==='WARN'?'status-warn':'status-ok';
+    tbody.innerHTML+='<tr>'+
+      '<td class="text-muted">'+(i+1)+'</td>'+
+      '<td class="mono">'+r.itemCode+'</td>'+
+      '<td>'+r.productName+'</td>'+
+      '<td>'+r.originCode+(r.country?' ('+r.country+')':'')+'</td>'+
+      '<td class="mono">'+fmtCn(r.cn8)+'</td>'+
+      '<td class="text-right">'+r.qty.toLocaleString('en')+'</td>'+
+      '<td class="text-right">'+r.tonnes.toFixed(4)+'</td>'+
+      '<td class="text-right">'+r.emissions.toFixed(4)+'</td>'+
+      '<td class="text-right">'+r.benchmark.toFixed(4)+'</td>'+
+      '<td class="text-right">'+r.freeAlloc.toFixed(4)+'</td>'+
+      '<td class="text-right">'+r.chargeableEm.toFixed(4)+'</td>'+
+      '<td class="text-right">'+fmt(r.costPerTonne)+'</td>'+
+      '<td class="text-right" style="font-weight:600">'+fmt(r.totalCost)+' €</td>'+
+      '<td class="'+cls+'">'+r.status+'</td>'+
+      '<td class="text-muted" style="font-size:12px">'+r.note+'</td>'+
+      '</tr>';
+  });
+
+  document.getElementById('resultsSection').classList.add('visible');
+  document.getElementById('resultsSection').scrollIntoView({behavior:'smooth'});
+}
+
+function sc(label,value,cls){
+  return '<div class="summary-card '+(cls||'')+'">' +
+    '<div class="sc-label">'+label+'</div><div class="sc-value">'+value+'</div></div>';
+}
+
+// === BENCHMARK LOOKUP (same as single calculator) ===
+function findBm(cn,sr){
+  // Collect all candidate CN codes: exact match + prefix relatives
+  let cands=[];
+  for(const bmCn of Object.keys(BENCHMARKS)){
+    if(bmCn===cn||bmCn.startsWith(cn)||cn.startsWith(bmCn)){cands.push(bmCn);continue;}
+    // Sibling match: share at least 6 chars of prefix
+    let p=0;while(p<bmCn.length&&p<cn.length&&bmCn[p]===cn[p])p++;
+    if(p>=6)cands.push(bmCn);
+  }
+  if(!cands.length)return null;
+  cands.sort((a,b)=>cpfx(b,cn)-cpfx(a,cn));
+  const cs=(sr||'').replace(/[()]/g,'').trim().toUpperCase();
+  // Pass 1: find exact route match across ALL candidates (not just exact CN)
+  if(cs){
+    for(const bmCn of cands){
+      for(const e of BENCHMARKS[bmCn]){
+        const cb=(e[1]||'').replace(/[()]/g,'').trim().toUpperCase();
+        if(cb===cs)return{value:e[0],route:e[1],desc:e[2],matchedCn:bmCn};
+      }
+    }
+  }
+  // Pass 2: no route match found — fallback to best candidate, first entry with desc
+  const best=BENCHMARKS[cands[0]];
+  const wd=best.find(e=>e[2]);
+  const fb=wd||best[0];
+  return{value:fb[0],route:fb[1],desc:fb[2],matchedCn:cands[0]};
+}
+function mr(entries,sr){
+  if(!entries||!entries.length)return null;
+  if(entries.length===1)return{value:entries[0][0],route:entries[0][1],desc:entries[0][2]};
+  const cs=(sr||'').replace(/[()]/g,'').trim().toUpperCase();
+  if(cs){for(const e of entries){const cb=(e[1]||'').replace(/[()]/g,'').trim().toUpperCase();if(cb===cs)return{value:e[0],route:e[1],desc:e[2]};}}
+  const wd=entries.find(e=>e[2]);
+  return wd?{value:wd[0],route:wd[1],desc:wd[2]}:{value:entries[0][0],route:entries[0][1],desc:entries[0][2]};
+}
+function cpfx(a,b){let i=0;while(i<a.length&&i<b.length&&a[i]===b[i])i++;return i;}
+
+// === HELPERS ===
+function fmt(n,d=2){return n.toLocaleString('en',{minimumFractionDigits:d,maximumFractionDigits:d});}
+function fmtCn(cn){
+  if(!cn)return'';
+  if(cn.length===8)return cn.slice(0,4)+' '+cn.slice(4,6)+' '+cn.slice(6);
+  if(cn.length===6)return cn.slice(0,4)+' '+cn.slice(4);
+  return cn;
+}
+
+// === DOWNLOAD RESULTS ===
+function downloadResults(){
+  if(!resultRows.length)return;
+  const year=document.getElementById('year').value;
+  const ets=document.getElementById('etsPrice').value;
+  const factor=document.getElementById('factor').value;
+
+  const header=['Item Code','Product Name','Origin Code','Country','CN Code','Quantity (pcs)',
+    'Weight per pc (kg)','Total Weight (t)','Reported Emissions (tCO₂e/t)','Benchmark (tCO₂e/t)',
+    'Free Allocation (tCO₂e/t)','Chargeable Emissions (tCO₂e/t)','Cost per tonne (€)',
+    'Total CBAM Cost (€)','Status','Note'];
+
+  const data=[header];
+  let totalCost=0;
+  for(const r of resultRows){
+    data.push([
+      r.itemCode, r.productName, r.originCode, r.country, r.cn8,
+      r.qty, r.weightKg, +r.tonnes.toFixed(4),
+      +r.emissions.toFixed(4), +r.benchmark.toFixed(4), +r.freeAlloc.toFixed(4),
+      +r.chargeableEm.toFixed(4), +r.costPerTonne.toFixed(2),
+      +r.totalCost.toFixed(2), r.status, r.note
+    ]);
+    totalCost+=r.totalCost;
+  }
+  // Summary row
+  data.push([]);
+  data.push(['TOTAL','','','','','','','','','','','','',+totalCost.toFixed(2),'',
+    'Year: '+year+' | ETS: '+ets+' €/t | Factor: '+factor]);
+
+  const ws=XLSX.utils.aoa_to_sheet(data);
+  // Column widths
+  ws['!cols']=[{wch:12},{wch:40},{wch:8},{wch:18},{wch:12},{wch:12},{wch:12},{wch:12},{wch:14},{wch:14},{wch:14},{wch:14},{wch:14},{wch:16},{wch:8},{wch:40}];
+  const wb=XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb,ws,'CBAM Results');
+  XLSX.writeFile(wb,'CBAM_Results_'+year+'.xlsx');
+}
+
+// === DOWNLOAD TEMPLATE ===
+function downloadTemplate(){
+  const data=[
+    ['Item Code','Quantity','Origin'],
+    [1208071,100000,'CHN'],
+    [1233890,250000,'TWN'],
+    [1306685,30000,'VNM']
+  ];
+  const ws=XLSX.utils.aoa_to_sheet(data);
+  ws['!cols']=[{wch:14},{wch:12},{wch:10}];
+  const wb=XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb,ws,'Sheet1');
+  XLSX.writeFile(wb,'CBAM_template.xlsx');
+}
+
+// === RESET ===
+function resetAll(){
+  clearFile();
+  document.getElementById('year').value='2026';
+  document.getElementById('etsPrice').value=90;
+  document.getElementById('factor').value=0.975;
+}
+
+window.onload=loadData;
+</script>
+</body>
+</html>

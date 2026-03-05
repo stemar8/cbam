@@ -227,7 +227,7 @@
 
 <div class="page-header"><h1>CBAM – BCZ</h1></div>
 <div class="subtitle">
-  <p>Cost estimate calculator for Carbon Border Adjustment Mechanism.</p>
+  <p>Cost estimate calculator for Carbon Border Adjustment Mechanism. <a href="bulk.html" style="color:#0066cc;font-weight:600;text-decoration:none;">Bulk calculator for multiple items →</a></p>
 </div>
 
 <div class="calculator">
@@ -529,12 +529,30 @@ function onCnSelected(idx){
 }
 
 function findBm(cn,sr){
-  if(BENCHMARKS[cn]){let m=mr(BENCHMARKS[cn],sr);if(m){m.matchedCn=cn;return m;}}
-  let c=[];for(const b of Object.keys(BENCHMARKS)){if(b.startsWith(cn)||cn.startsWith(b))c.push(b);}
-  if(!c.length)return null;
-  c.sort((a,b)=>commonPrefix(b,cn)-commonPrefix(a,cn));
-  for(const b of c){let m=mr(BENCHMARKS[b],sr);if(m){m.matchedCn=b;return m;}}
-  const f=BENCHMARKS[c[0]][0];return{value:f[0],route:f[1],desc:f[2],matchedCn:c[0]};
+  // Collect all candidate CN codes: exact match + prefix relatives
+  let cands=[];
+  for(const bmCn of Object.keys(BENCHMARKS)){
+    if(bmCn===cn||bmCn.startsWith(cn)||cn.startsWith(bmCn)){cands.push(bmCn);continue;}
+    let p=0;while(p<bmCn.length&&p<cn.length&&bmCn[p]===cn[p])p++;
+    if(p>=6)cands.push(bmCn);
+  }
+  if(!cands.length)return null;
+  cands.sort((a,b)=>commonPrefix(b,cn)-commonPrefix(a,cn));
+  const cs=(sr||'').replace(/[()]/g,'').trim().toUpperCase();
+  // Pass 1: find exact route match across ALL candidates (not just exact CN)
+  if(cs){
+    for(const bmCn of cands){
+      for(const e of BENCHMARKS[bmCn]){
+        const cb=(e[1]||'').replace(/[()]/g,'').trim().toUpperCase();
+        if(cb===cs)return{value:e[0],route:e[1],desc:e[2],matchedCn:bmCn};
+      }
+    }
+  }
+  // Pass 2: no route match — fallback to best candidate, first entry with desc
+  const best=BENCHMARKS[cands[0]];
+  const wd=best.find(e=>e[2]);
+  const fb=wd||best[0];
+  return{value:fb[0],route:fb[1],desc:fb[2],matchedCn:cands[0]};
 }
 function mr(entries,sr){
   if(!entries||!entries.length)return null;
