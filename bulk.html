@@ -208,10 +208,16 @@
   <div class="grid-3">
     <div class="form-group">
       <label>Year</label>
-      <select id="year">
-        <option value="2026" selected>2026 (10% mark-up)</option>
-        <option value="2027">2027 (20% mark-up)</option>
-        <option value="2028">2028+ (30% mark-up)</option>
+      <select id="year" onchange="onYearChange()">
+        <option value="2026" selected>2026</option>
+        <option value="2027">2027</option>
+        <option value="2028">2028</option>
+        <option value="2029">2029</option>
+        <option value="2030">2030</option>
+        <option value="2031">2031</option>
+        <option value="2032">2032</option>
+        <option value="2033">2033</option>
+        <option value="2034">2034</option>
       </select>
     </div>
     <div class="form-group">
@@ -219,8 +225,9 @@
       <input type="number" id="etsPrice" value="90" step="1">
     </div>
     <div class="form-group">
-      <label>CBAM Factor / Phase</label>
+      <label>CBAM Factor / Phase <span class="info-badge" id="factorBadge" style="font-size:11px;padding:2px 8px;border-radius:4px;background:#e8f0fa;color:#0066cc;font-weight:600;margin-left:8px;">auto</span></label>
       <input type="number" id="factor" value="0.975" step="0.001">
+      <div style="font-size:12px;color:#5c5c5c;margin-top:4px;font-style:italic;" id="factorInfoBulk">2026: factor 0.975</div>
     </div>
   </div>
 </div>
@@ -277,6 +284,15 @@
 let STD_VALUES={},BENCHMARKS={},ITEMS={};
 let uploadedRows=[];
 let resultRows=[];
+
+const CBAM_FACTORS={2026:0.975,2027:0.95,2028:0.9,2029:0.775,2030:0.515,2031:0.39,2032:0.265,2033:0.14,2034:0.0};
+
+function onYearChange(){
+  const y=parseInt(document.getElementById('year').value);
+  const f=CBAM_FACTORS[y]||0;
+  document.getElementById('factor').value=f;
+  document.getElementById('factorInfoBulk').textContent=y+': factor '+f;
+}
 
 const ISO3={
 "ALB":"Albania","DZA":"Algeria","AGO":"Angola","ARG":"Argentina","ARM":"Armenia","AUS":"Australia",
@@ -502,18 +518,25 @@ function sc(label,value,cls){
 
 // === BENCHMARK LOOKUP (same as single calculator) ===
 function findBm(cn,sr){
-  // Collect all candidate CN codes: exact match + prefix relatives
+  // Priority 1: EXACT CN match in benchmarks — use it directly regardless of route from parent std
+  if(BENCHMARKS[cn]){
+    const entries=BENCHMARKS[cn];
+    const cs=(sr||'').replace(/[()]/g,'').trim().toUpperCase();
+    if(cs){for(const e of entries){const cb=(e[1]||'').replace(/[()]/g,'').trim().toUpperCase();if(cb===cs)return{value:e[0],route:e[1],desc:e[2],matchedCn:cn};}}
+    const wd=entries.find(e=>e[2]);
+    const fb=wd||entries[0];
+    return{value:fb[0],route:fb[1],desc:fb[2],matchedCn:cn};
+  }
+  // Priority 2: No exact match — search parent/child/sibling codes, use route to find best match
   let cands=[];
   for(const bmCn of Object.keys(BENCHMARKS)){
-    if(bmCn===cn||bmCn.startsWith(cn)||cn.startsWith(bmCn)){cands.push(bmCn);continue;}
-    // Sibling match: share at least 6 chars of prefix
+    if(bmCn.startsWith(cn)||cn.startsWith(bmCn)){cands.push(bmCn);continue;}
     let p=0;while(p<bmCn.length&&p<cn.length&&bmCn[p]===cn[p])p++;
     if(p>=6)cands.push(bmCn);
   }
   if(!cands.length)return null;
   cands.sort((a,b)=>cpfx(b,cn)-cpfx(a,cn));
   const cs=(sr||'').replace(/[()]/g,'').trim().toUpperCase();
-  // Pass 1: find exact route match across ALL candidates (not just exact CN)
   if(cs){
     for(const bmCn of cands){
       for(const e of BENCHMARKS[bmCn]){
@@ -522,7 +545,6 @@ function findBm(cn,sr){
       }
     }
   }
-  // Pass 2: no route match found — fallback to best candidate, first entry with desc
   const best=BENCHMARKS[cands[0]];
   const wd=best.find(e=>e[2]);
   const fb=wd||best[0];
@@ -605,6 +627,7 @@ function resetAll(){
   document.getElementById('year').value='2026';
   document.getElementById('etsPrice').value=90;
   document.getElementById('factor').value=0.975;
+  document.getElementById('factorInfoBulk').textContent='2026: factor 0.975';
 }
 
 window.onload=loadData;

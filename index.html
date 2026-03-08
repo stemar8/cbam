@@ -148,6 +148,8 @@
   .search-select .dropdown .option .cn-code { font-weight: 700; color: var(--accent-dark); font-family: 'Consolas','Courier New',monospace; font-size: 14px; }
   .search-select .dropdown .option .cn-desc { color: var(--text-muted); font-size: 13px; margin-left: 6px; }
   .search-select .dropdown .option .cn-route { font-size: 11px; color: var(--accent); background: var(--accent-light); padding: 1px 6px; border-radius: 3px; margin-left: 6px; }
+  .search-select .dropdown .option .cn-src { font-size: 10px; color: #888; background: #f0f0f0; padding: 1px 5px; border-radius: 3px; margin-left: 6px; font-weight: 600; }
+  .search-select .dropdown .option .cn-src.bm { color: var(--green); background: var(--green-light); }
   .search-select .dropdown .no-results { padding: 14px; color: var(--text-muted); font-size: 13px; text-align: center; }
   .mode-toggle {
     display: flex; gap: 0; margin-bottom: 20px;
@@ -241,11 +243,17 @@
     </div>
     <div class="form-group">
       <label>Year</label>
-      <div class="year-tabs">
-        <button class="year-tab active" data-year="2026" onclick="setYear(this)">2026</button>
-        <button class="year-tab" data-year="2027" onclick="setYear(this)">2027</button>
-        <button class="year-tab" data-year="2028" onclick="setYear(this)">2028+</button>
-      </div>
+      <select id="yearSelect" onchange="setYear()">
+        <option value="2026" selected>2026</option>
+        <option value="2027">2027</option>
+        <option value="2028">2028</option>
+        <option value="2029">2029</option>
+        <option value="2030">2030</option>
+        <option value="2031">2031</option>
+        <option value="2032">2032</option>
+        <option value="2033">2033</option>
+        <option value="2034">2034</option>
+      </select>
     </div>
   </div>
   <div class="mode-toggle">
@@ -254,9 +262,9 @@
   </div>
   <div class="mode-section active" id="mode-manual">
     <div class="form-group">
-      <label>Product CN code (search by code or description)</label>
+      <label>Product CN code (search by code or description — includes detailed benchmark codes)</label>
       <div class="search-select" id="cnSearchWrapper">
-        <input type="text" id="cnSearch" placeholder="Select a country first…" disabled
+        <input type="text" id="cnSearch" placeholder="Enter CN code or product description…"
                oninput="filterCnCodes()" onfocus="openCnDropdown()" autocomplete="off">
         <div class="dropdown" id="cnDropdown"></div>
       </div>
@@ -303,8 +311,9 @@
       <div class="route-info" id="benchmarkInfo"></div>
     </div>
     <div class="form-group">
-      <label>CBAM Factor / Phase</label>
+      <label>CBAM Factor / Phase <span class="info-badge" id="factorBadge">auto</span></label>
       <input type="number" step="0.001" id="factor" value="0.975" oninput="calculate()">
+      <div class="route-info" id="factorInfo">2026: factor 0.975</div>
     </div>
     <div class="form-group">
       <label>EU ETS allowance price (€ / t CO₂)</label>
@@ -351,6 +360,8 @@
 <script>
 let STD_VALUES={}, BENCHMARKS={}, ITEMS={};
 let selectedYear='2026', currentCnEntries=[], selectedCnIdx=-1, currentMode='manual', selectedItemKey=null, dropdownHighlight=-1;
+
+const CBAM_FACTORS={2026:0.975,2027:0.95,2028:0.9,2029:0.775,2030:0.515,2031:0.39,2032:0.265,2033:0.14,2034:0.0};
 
 async function loadData(){
   const p=document.getElementById('loadingProgress');
@@ -400,16 +411,21 @@ function setMode(m){
   document.getElementById('mode-item').classList.toggle('active',m==='item');
 }
 
-function setYear(btn){
-  document.querySelectorAll('.year-tab').forEach(b=>b.classList.remove('active'));
-  btn.classList.add('active'); selectedYear=btn.dataset.year;
+function setYear(){
+  selectedYear=document.getElementById('yearSelect').value;
+  // Auto-update CBAM factor
+  const f=CBAM_FACTORS[parseInt(selectedYear)]||0;
+  document.getElementById('factor').value=f;
+  document.getElementById('factorInfo').textContent=selectedYear+': factor '+f;
+  if(currentMode==='item'&&selectedItemKey){onItemSelected(selectedItemKey);return;}
   if(selectedCnIdx>=0) onCnSelected(selectedCnIdx);
+  else calculate();
 }
 
 function onCountryChange(){
   const c=document.getElementById('country').value, si=document.getElementById('cnSearch');
   selectedCnIdx=-1; si.value='';
-  if(!c||!STD_VALUES[c]){si.placeholder='Select a country first…';si.disabled=true;currentCnEntries=[];return;}
+  if(!c||!STD_VALUES[c]){si.placeholder='Enter CN code to search benchmarks…';si.disabled=false;currentCnEntries=[];return;}
   currentCnEntries=STD_VALUES[c]; si.disabled=false; si.placeholder='Enter CN code or product description…';
   clearAutoValues();
   if(currentMode==='item'&&selectedItemKey) onItemSelected(selectedItemKey);
@@ -420,28 +436,85 @@ function formatCn(cn){
   if(cn.length===6)return cn.slice(0,4)+' '+cn.slice(4);
   return cn;
 }
-function openCnDropdown(){if(!currentCnEntries.length)return;filterCnCodes();document.getElementById('cnDropdown').classList.add('open');}
+function openCnDropdown(){
+  const country=document.getElementById('country').value;
+  if(!country&&!Object.keys(BENCHMARKS).length)return;
+  filterCnCodes();document.getElementById('cnDropdown').classList.add('open');
+}
 
 function filterCnCodes(){
   const q=document.getElementById('cnSearch').value.toLowerCase().trim(),dd=document.getElementById('cnDropdown');
   dd.innerHTML='';dropdownHighlight=-1;
   const f=[];
+  const seenCn=new Set();
+
+  // 1. Standard value entries (give emissions)
   currentCnEntries.forEach((e,idx)=>{
     const s=(e[0]+' '+formatCn(e[0])+' '+e[1]+' '+(e[5]||'')).toLowerCase();
-    if(!q||s.includes(q))f.push({entry:e,idx,cn:e[0],desc:e[1],route:e[5]||'',cnF:formatCn(e[0])});
+    if(!q||s.includes(q)){
+      f.push({src:'std',idx,cn:e[0],desc:e[1],route:e[5]||'',cnF:formatCn(e[0])});
+      seenCn.add(e[0]);
+    }
   });
+
+  // 2. Benchmark entries — more detailed CN codes not already in std values
+  for(const bmCn of Object.keys(BENCHMARKS)){
+    if(seenCn.has(bmCn))continue;
+    const entries=BENCHMARKS[bmCn];
+    const desc=entries.find(e=>e[2])?entries.find(e=>e[2])[2]:'';
+    const routes=entries.map(e=>e[1]).filter(Boolean).join(', ');
+    const s=(bmCn+' '+formatCn(bmCn)+' '+desc+' '+routes).toLowerCase();
+    if(!q||s.includes(q)){
+      f.push({src:'bm',cn:bmCn,desc:desc,route:routes,cnF:formatCn(bmCn),bmEntries:entries});
+    }
+  }
+
   if(!f.length){dd.innerHTML='<div class="no-results">No results</div>';dd.classList.add('open');return;}
-  f.slice(0,100).forEach(it=>{
+
+  // Sort: std entries first, then by CN code
+  f.sort((a,b)=>{if(a.src!==b.src)return a.src==='std'?-1:1;return a.cn.localeCompare(b.cn);});
+
+  f.slice(0,120).forEach(it=>{
     const d=document.createElement('div');d.className='option';
-    d.innerHTML='<span class="cn-code">'+it.cnF+'</span><span class="cn-desc">'+it.desc+'</span>'+(it.route?'<span class="cn-route">'+it.route+'</span>':'');
+    const srcTag=it.src==='bm'?'<span class="cn-src bm">BM</span>':'';
+    d.innerHTML='<span class="cn-code">'+it.cnF+'</span><span class="cn-desc">'+it.desc+'</span>'+
+      (it.route?'<span class="cn-route">'+it.route+'</span>':'')+srcTag;
     d.onclick=()=>selectCn(it);dd.appendChild(d);
   });
-  if(f.length>100){const m=document.createElement('div');m.className='no-results';m.textContent='… and '+(f.length-100)+' more results. Type to narrow down.';dd.appendChild(m);}
+  if(f.length>120){const m=document.createElement('div');m.className='no-results';m.textContent='… and '+(f.length-120)+' more results. Type to narrow down.';dd.appendChild(m);}
   dd.classList.add('open');
 }
+
 function selectCn(it){
   document.getElementById('cnSearch').value=it.cnF+' — '+it.desc+(it.route?' '+it.route:'');
-  closeDd('cnDropdown');selectedCnIdx=it.idx;onCnSelected(it.idx);
+  closeDd('cnDropdown');
+
+  if(it.src==='std'){
+    // Standard value entry — existing logic
+    selectedCnIdx=it.idx;
+    onCnSelected(it.idx);
+  } else {
+    // Benchmark-only CN — find best parent in std values for emissions, use this CN for benchmark
+    const country=document.getElementById('country').value;
+    if(!country||!STD_VALUES[country]){
+      fillBmOnly(it.cn,'');
+      document.getElementById('noteBox').textContent='Select a country of origin to populate emissions.';
+      document.getElementById('noteBox').style.display='block';
+      calculate();return;
+    }
+    const entries=STD_VALUES[country];
+    let bestIdx=-1,bestLen=0;
+    entries.forEach((e,idx)=>{const p=commonPrefix(e[0],it.cn);if(p>bestLen){bestLen=p;bestIdx=idx;}});
+    if(bestIdx>=0&&bestLen>=4){
+      selectedCnIdx=bestIdx;
+      onCnSelected(bestIdx,it.cn);
+    } else {
+      // No std match — fill benchmark only
+      selectedCnIdx=-1;
+      fillBmOnly(it.cn,'');
+      calculate();
+    }
+  }
 }
 
 function openItemDropdown(){filterItems();document.getElementById('itemDropdown').classList.add('open');}
@@ -484,7 +557,7 @@ function onItemSelected(key){
   const entries=STD_VALUES[country];let bestIdx=-1,bestLen=0;
   entries.forEach((e,idx)=>{const p=commonPrefix(e[0],cn8);if(p>bestLen){bestLen=p;bestIdx=idx;}});
   if(bestIdx>=0&&bestLen>=4){
-    selectedCnIdx=bestIdx;onCnSelected(bestIdx);
+    selectedCnIdx=bestIdx;onCnSelected(bestIdx,cn8);
     const mc=entries[bestIdx][0];
     if(mc!==cn8){const nb=document.getElementById('noteBox');nb.textContent='Matched CN code from default values: '+formatCn(mc)+' (closest match for '+formatCn(cn8)+')';nb.style.display='block';}
   }else{
@@ -504,10 +577,11 @@ function fillBmOnly(cn,route){
     if(r.matchedCn&&r.matchedCn!==cn)t+=' [code '+formatCn(r.matchedCn)+']';binfo.textContent=t;}
 }
 
-function onCnSelected(idx){
+function onCnSelected(idx,bmCnOverride){
   const country=document.getElementById('country').value;
   if(!country||!STD_VALUES[country])return;
   const entry=STD_VALUES[country][idx],cn=entry[0],sr=(entry[5]||'').trim();
+  const bmCn=bmCnOverride||cn; // use item CN8 for benchmark when available, otherwise std CN
   const yi=selectedYear==='2026'?2:selectedYear==='2027'?3:4,val=entry[yi];
   const ei=document.getElementById('emissions'),bi=document.getElementById('benchmark');
   const eb=document.getElementById('emBadge'),bb=document.getElementById('bmBadge');
@@ -520,26 +594,36 @@ function onCnSelected(idx){
     const mp=selectedYear==='2026'?'10%':selectedYear==='2027'?'20%':'30%';
     einfo.textContent='Default value for '+country+' ('+selectedYear+', incl. '+mp+' mark-up)'+(sr?', production route '+sr:'');
   }
-  let r=findBm(cn,sr);
+  let r=findBm(bmCn,sr);
   if(r){bi.value=r.value;bi.classList.add('auto-filled');bb.style.display='inline-block';
     let t='Benchmark Column B: '+r.value+' tCO₂e/t';if(r.route)t+=' (route '+r.route+')';if(r.desc)t+=' — '+r.desc;
-    if(r.matchedCn&&r.matchedCn!==cn)t+=' [code '+formatCn(r.matchedCn)+']';binfo.textContent=t;
-  }else{nb.textContent='No matching benchmark found for CN code '+formatCn(cn)+'. Please enter the value manually.';nb.style.display='block';}
+    if(r.matchedCn&&r.matchedCn!==bmCn)t+=' [code '+formatCn(r.matchedCn)+']';binfo.textContent=t;
+  }else{nb.textContent='No matching benchmark found for CN code '+formatCn(bmCn)+'. Please enter the value manually.';nb.style.display='block';}
   calculate();
 }
 
 function findBm(cn,sr){
-  // Collect all candidate CN codes: exact match + prefix relatives
+  // Priority 1: EXACT CN match in benchmarks — use it directly regardless of route from parent std
+  if(BENCHMARKS[cn]){
+    const entries=BENCHMARKS[cn];
+    // Try route match within exact CN
+    const cs=(sr||'').replace(/[()]/g,'').trim().toUpperCase();
+    if(cs){for(const e of entries){const cb=(e[1]||'').replace(/[()]/g,'').trim().toUpperCase();if(cb===cs)return{value:e[0],route:e[1],desc:e[2],matchedCn:cn};}}
+    // No route match but exact CN exists — use first entry (correct product-specific benchmark)
+    const wd=entries.find(e=>e[2]);
+    const fb=wd||entries[0];
+    return{value:fb[0],route:fb[1],desc:fb[2],matchedCn:cn};
+  }
+  // Priority 2: No exact match — search parent/child/sibling codes, use route to find best match
   let cands=[];
   for(const bmCn of Object.keys(BENCHMARKS)){
-    if(bmCn===cn||bmCn.startsWith(cn)||cn.startsWith(bmCn)){cands.push(bmCn);continue;}
+    if(bmCn.startsWith(cn)||cn.startsWith(bmCn)){cands.push(bmCn);continue;}
     let p=0;while(p<bmCn.length&&p<cn.length&&bmCn[p]===cn[p])p++;
     if(p>=6)cands.push(bmCn);
   }
   if(!cands.length)return null;
   cands.sort((a,b)=>commonPrefix(b,cn)-commonPrefix(a,cn));
   const cs=(sr||'').replace(/[()]/g,'').trim().toUpperCase();
-  // Pass 1: find exact route match across ALL candidates (not just exact CN)
   if(cs){
     for(const bmCn of cands){
       for(const e of BENCHMARKS[bmCn]){
@@ -548,7 +632,6 @@ function findBm(cn,sr){
       }
     }
   }
-  // Pass 2: no route match — fallback to best candidate, first entry with desc
   const best=BENCHMARKS[cands[0]];
   const wd=best.find(e=>e[2]);
   const fb=wd||best[0];
@@ -597,14 +680,14 @@ function fmt(n,d=2){return n.toLocaleString('en',{minimumFractionDigits:d,maximu
 function resetAll(){
   document.getElementById('country').value='';currentCnEntries=[];selectedCnIdx=-1;selectedItemKey=null;
   setMode('manual');
-  const cs=document.getElementById('cnSearch');cs.value='';cs.disabled=true;cs.placeholder='Select a country first…';closeDd('cnDropdown');
+  const cs=document.getElementById('cnSearch');cs.value='';cs.placeholder='Enter CN code or product description…';closeDd('cnDropdown');
   document.getElementById('itemSearch').value='';closeDd('itemDropdown');
   document.getElementById('itemQty').value=1;document.getElementById('productCard').classList.remove('visible');
-  selectedYear='2026';document.querySelectorAll('.year-tab').forEach(b=>b.classList.toggle('active',b.dataset.year==='2026'));
+  selectedYear='2026';document.getElementById('yearSelect').value='2026';
   document.getElementById('qty').value=1;document.getElementById('qty').classList.remove('auto-filled-green');
   document.getElementById('qtyBadge').style.display='none';document.getElementById('qtyInfo').textContent='';
   document.getElementById('emissions').value='';document.getElementById('benchmark').value='';
-  document.getElementById('factor').value=0.975;document.getElementById('etsPrice').value=90;document.getElementById('paidAbroad').value=0;
+  document.getElementById('factor').value=0.975;document.getElementById('factorInfo').textContent='2026: factor 0.975';document.getElementById('etsPrice').value=90;document.getElementById('paidAbroad').value=0;
   ['emissions','benchmark'].forEach(id=>document.getElementById(id).classList.remove('auto-filled'));
   document.getElementById('emBadge').style.display='none';document.getElementById('bmBadge').style.display='none';
   document.getElementById('emissionsInfo').textContent='';document.getElementById('benchmarkInfo').textContent='';
