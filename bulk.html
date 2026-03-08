@@ -271,6 +271,10 @@
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M7 10l5 5 5-5M12 15V3"/></svg>
       Download results (.xlsx)
     </button>
+    <button class="btn btn-outline" style="border-color:var(--green);color:var(--green);" onclick="downloadReport()">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
+      Download report (.xlsx)
+    </button>
   </div>
   <div class="table-wrap" style="max-height:600px;overflow-y:auto;">
     <table>
@@ -604,6 +608,78 @@ function downloadResults(){
   const wb=XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(wb,ws,'CBAM Results');
   XLSX.writeFile(wb,'CBAM_Results_'+year+'.xlsx');
+}
+
+// === DOWNLOAD REPORT ===
+const EU_COUNTRIES=new Set(['AUT','BEL','BGR','HRV','CYP','CZE','DNK','EST','FIN','FRA','DEU','GRC','HUN','IRL','ITA','LVA','LTU','LUX','MLT','NLD','POL','PRT','ROU','SVK','SVN','ESP','SWE']);
+
+function downloadReport(){
+  if(!resultRows.length)return;
+  const year=document.getElementById('year').value;
+  const ets=document.getElementById('etsPrice').value;
+  const factor=document.getElementById('factor').value;
+
+  // Group by itemCode + originCode
+  const groups={};
+  for(const r of resultRows){
+    const key=r.itemCode+'|'+r.originCode;
+    if(!groups[key]){
+      // Determine report status
+      let reportStatus=r.status;
+      let reportNote=r.note;
+      if(r.status==='ERROR'&&EU_COUNTRIES.has(r.originCode)){
+        reportStatus='Produced in EU';reportNote='';
+      }
+      if(r.status==='WARN'&&(r.note.includes('No matching CN')||r.note.includes('No default value'))){
+        reportStatus='CN code out of CBAM scope';reportNote='';
+      }
+      groups[key]={
+        itemCode:r.itemCode,
+        productName:r.productName,
+        originCode:r.originCode,
+        country:r.country||r.originCode,
+        cn8:r.cn8,
+        qty:0,
+        weightKg:r.weightKg,
+        tonnes:0,
+        emissions:r.emissions,
+        benchmark:r.benchmark,
+        totalCost:0,
+        status:reportStatus,
+        note:reportNote
+      };
+    }
+    const g=groups[key];
+    g.qty+=r.qty;
+    g.tonnes+=r.tonnes;
+    g.totalCost+=r.totalCost;
+  }
+
+  const header=['Item Code','Product Name','Origin','Country','CN Code',
+    'Quantity (pcs)','Weight per pc (kg)','Total Weight (t)',
+    'Reported Emissions (tCO₂e/t)','Benchmark (tCO₂e/t)',
+    'Total CBAM Cost (€)','Status','Note'];
+
+  const data=[header];
+  let totalCost=0;
+  for(const g of Object.values(groups)){
+    data.push([
+      g.itemCode, g.productName, g.originCode, g.country, g.cn8,
+      g.qty, g.weightKg, +g.tonnes.toFixed(4),
+      +g.emissions.toFixed(4), +g.benchmark.toFixed(4),
+      +g.totalCost.toFixed(2), g.status, g.note
+    ]);
+    totalCost+=g.totalCost;
+  }
+  data.push([]);
+  data.push(['TOTAL','','','','','','','','','',+totalCost.toFixed(2),'',
+    'Year: '+year+' | ETS: '+ets+' €/t | Factor: '+factor]);
+
+  const ws=XLSX.utils.aoa_to_sheet(data);
+  ws['!cols']=[{wch:12},{wch:40},{wch:8},{wch:18},{wch:12},{wch:12},{wch:12},{wch:12},{wch:14},{wch:14},{wch:16},{wch:24},{wch:40}];
+  const wb=XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb,ws,'CBAM Report');
+  XLSX.writeFile(wb,'CBAM_Report_'+year+'.xlsx');
 }
 
 // === DOWNLOAD TEMPLATE ===
