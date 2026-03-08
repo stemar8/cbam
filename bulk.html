@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>CBAM - BCZ Bulk Calculator</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.3.0/exceljs.min.js"></script>
 <style>
   :root {
     --bg: #ffffff;
@@ -413,7 +414,12 @@ function runCalculation(){
 
     // Resolve country
     const country=ISO3[row.origin];
-    if(!country){res.status='ERROR';res.note='Unknown country code: '+row.origin;resultRows.push(res);continue;}
+    if(!country){
+      // Still resolve item info even if country unknown (e.g. EU countries)
+      const item=ITEMS[row.itemCode];
+      if(item){res.productName=item[0];res.weightKg=item[1];res.cn8=item[2];res.tonnes=(row.qty*item[1])/1000;}
+      res.status='ERROR';res.note='Unknown country code: '+row.origin;resultRows.push(res);continue;
+    }
     res.country=country;
 
     // Resolve item
@@ -624,7 +630,6 @@ function downloadReport(){
   for(const r of resultRows){
     const key=r.itemCode+'|'+r.originCode;
     if(!groups[key]){
-      // Determine report status
       let reportStatus=r.status;
       let reportNote=r.note;
       if(r.status==='ERROR'&&EU_COUNTRIES.has(r.originCode)){
@@ -637,7 +642,6 @@ function downloadReport(){
         itemCode:r.itemCode,
         productName:r.productName,
         originCode:r.originCode,
-        country:r.country||r.originCode,
         cn8:r.cn8,
         qty:0,
         weightKg:r.weightKg,
@@ -655,31 +659,106 @@ function downloadReport(){
     g.totalCost+=r.totalCost;
   }
 
-  const header=['Item Code','Product Name','Origin','Country','CN Code',
-    'Quantity (pcs)','Weight per pc (kg)','Total Weight (t)',
-    'Reported Emissions (tCO₂e/t)','Benchmark (tCO₂e/t)',
-    'Total CBAM Cost (€)','Status','Note'];
+  const wb=new ExcelJS.Workbook();
+  const ws=wb.addWorksheet('CBAM Report');
 
-  const data=[header];
+  // Column definitions (no Country column)
+  const cols=[
+    {header:'Item Code',key:'itemCode',width:14},
+    {header:'Product Name',key:'productName',width:42},
+    {header:'Origin',key:'origin',width:10},
+    {header:'CN Code',key:'cn8',width:14},
+    {header:'Quantity (pcs)',key:'qty',width:14},
+    {header:'Weight per pc (kg)',key:'weightKg',width:16},
+    {header:'Total Weight (t)',key:'tonnes',width:14},
+    {header:'Reported Emissions (tCO₂e/t)',key:'emissions',width:18},
+    {header:'Benchmark (tCO₂e/t)',key:'benchmark',width:16},
+    {header:'Total CBAM Cost (€)',key:'totalCost',width:18},
+    {header:'Status',key:'status',width:26},
+    {header:'Note',key:'note',width:40}
+  ];
+  ws.columns=cols;
+
+  // Light blue fill for highlighted columns
+  const lightBlue={type:'pattern',pattern:'solid',fgColor:{argb:'FFD6E8F7'}};
+  // Columns to highlight: Item Code(1), Origin(3), Quantity(5), Total CBAM Cost(10)
+  const hlCols=[1,3,5,10];
+
+  // Header row (row 1): bold + light blue on highlighted cols
+  const headerRow=ws.getRow(1);
+  headerRow.font={bold:true,size:11};
+  headerRow.eachCell((cell,colNum)=>{
+    cell.border={bottom:{style:'thin',color:{argb:'FF999999'}}};
+    if(hlCols.includes(colNum)){
+      cell.fill=lightBlue;
+    }
+  });
+
+  // Autofilter on header
+  ws.autoFilter={from:{row:1,column:1},to:{row:1,column:cols.length}};
+
+  // Data rows
   let totalCost=0;
-  for(const g of Object.values(groups)){
-    data.push([
-      g.itemCode, g.productName, g.originCode, g.country, g.cn8,
-      g.qty, g.weightKg, +g.tonnes.toFixed(4),
-      +g.emissions.toFixed(4), +g.benchmark.toFixed(4),
-      +g.totalCost.toFixed(2), g.status, g.note
-    ]);
-    totalCost+=g.totalCost;
-  }
-  data.push([]);
-  data.push(['TOTAL','','','','','','','','','',+totalCost.toFixed(2),'',
-    'Year: '+year+' | ETS: '+ets+' €/t | Factor: '+factor]);
+  const groupValues=Object.values(groups);
+  groupValues.forEach(g=>{
+    const reportCost=(g.status==='Produced in EU'||g.status==='CN code out of CBAM scope')?0:g.totalCost;
+    const row=ws.addRow({
+      itemCode:g.itemCode,
+      productName:g.productName,
+      origin:g.originCode,
+      cn8:g.cn8,
+      qty:g.qty,
+      weightKg:g.weightKg,
+      tonnes:+g.tonnes.toFixed(4),
+      emissions:+g.emissions.toFixed(4),
+      benchmark:+g.benchmark.toFixed(4),
+      totalCost:+reportCost.toFixed(2),
+      status:g.status,
+      note:g.note
+    });
+    // Apply light blue to highlighted columns
+    hlCols.forEach(c=>{row.getCell(c).fill=lightBlue;});
+    totalCost+=reportCost;
+  });
 
-  const ws=XLSX.utils.aoa_to_sheet(data);
-  ws['!cols']=[{wch:12},{wch:40},{wch:8},{wch:18},{wch:12},{wch:12},{wch:12},{wch:12},{wch:14},{wch:14},{wch:16},{wch:24},{wch:40}];
-  const wb=XLSX.utils.book_new();
-  XLSX.utils.book_append_sheet(wb,ws,'CBAM Report');
-  XLSX.writeFile(wb,'CBAM_Report_'+year+'.xlsx');
+  // Empty row
+  ws.addRow([]);
+
+  // TOTAL row — bold
+  const totalRowNum=groupValues.length+3;
+  const totalRow=ws.addRow({
+    itemCode:'TOTAL',
+    productName:'',
+    origin:'',
+    cn8:'',
+    qty:'',
+    weightKg:'',
+    tonnes:'',
+    emissions:'',
+    benchmark:'',
+    totalCost:+totalCost.toFixed(2),
+    status:'',
+    note:'Year: '+year+' | ETS: '+ets+' €/t | Factor: '+factor
+  });
+  totalRow.font={bold:true,size:11};
+  hlCols.forEach(c=>{totalRow.getCell(c).fill=lightBlue;});
+
+  // Disclaimer row — red text
+  const discRow=ws.addRow({
+    itemCode:'Please note: These CBAM costs are indicative estimates based on provided data and actual costs may vary.'
+  });
+  discRow.font={color:{argb:'FFCC0000'},italic:true,size:10};
+  // Merge disclaimer across all columns
+  ws.mergeCells(totalRowNum+1,1,totalRowNum+1,cols.length);
+
+  // Export
+  wb.xlsx.writeBuffer().then(buf=>{
+    const blob=new Blob([buf],{type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'});
+    const url=URL.createObjectURL(blob);
+    const a=document.createElement('a');
+    a.href=url;a.download='CBAM_Report_'+year+'.xlsx';a.click();
+    URL.revokeObjectURL(url);
+  });
 }
 
 // === DOWNLOAD TEMPLATE ===
