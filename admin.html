@@ -311,7 +311,13 @@ function doLogin(){
 async function loadItems(){
   document.getElementById('loadingOverlay').classList.remove('hidden');
   try{
-    ITEMS=await(await fetch('items.json')).json();
+    let itemsText=await(await fetch('items.json')).text();
+    itemsText=itemsText.replace(/[\x00-\x1f]/g, function(c){return c==='\n'||c==='\r'||c==='\t'?' ':''});
+    ITEMS=JSON.parse(itemsText);
+    // Clean any remaining whitespace issues in product names
+    for(const k of Object.keys(ITEMS)){
+      if(typeof ITEMS[k][0]==='string') ITEMS[k][0]=ITEMS[k][0].replace(/\s+/g,' ').trim();
+    }
     // Load history from localStorage
     try{history=JSON.parse(localStorage.getItem('cbam_item_history')||'[]');}catch(e){history=[];}
     // Apply unsaved changes from history
@@ -585,7 +591,7 @@ function processImport(file){
     for(let i=startRow;i<json.length;i++){
       const r=json[i];if(!r||!r[0])continue;
       const code=String(r[0]).trim();
-      const name=String(r[1]||'').trim().substring(0,120).replace(/\s+/g,' ');
+      const name=String(r[1]||'').replace(/[\x00-\x1f]/g,' ').replace(/\s+/g,' ').trim().substring(0,120);
       const weight=parseFloat(r[2])||0;
       let cn=String(r[3]||'').trim();
       if(cn.length>8)cn=cn.substring(0,8);
@@ -727,7 +733,13 @@ function clearAllHistory(){
 }
 
 function exportItems(){
-  const json=JSON.stringify(ITEMS,null,null).replace(/,"/g,',\n"');
+  // Clean control characters from all item names before export
+  for(const k of Object.keys(ITEMS)){
+    if(typeof ITEMS[k][0]==='string'){
+      ITEMS[k][0]=ITEMS[k][0].replace(/[\x00-\x1f]/g,' ').replace(/\s+/g,' ').trim();
+    }
+  }
+  const json=JSON.stringify(ITEMS);
   const blob=new Blob([json],{type:'application/json'});
   const url=URL.createObjectURL(blob);
   const a=document.createElement('a');

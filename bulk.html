@@ -334,7 +334,9 @@ async function loadData(){
     p.textContent='2 / 3 — benchmarks…';
     BENCHMARKS=await(await fetch('benchmarks.json')).json();
     p.textContent='3 / 3 — item catalogue…';
-    ITEMS=await(await fetch('items.json')).json();
+    let itemsText=await(await fetch('items.json')).text();
+    itemsText=itemsText.replace(/[\x00-\x1f]/g, function(c){return c==='\n'||c==='\r'||c==='\t'?' ':''});
+    ITEMS=JSON.parse(itemsText);
     p.textContent='Done!';
   }catch(e){p.textContent='Error: '+e.message;return;}
   document.getElementById('loadingOverlay').classList.add('hidden');
