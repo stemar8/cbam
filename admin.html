@@ -1,0 +1,654 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CBAM - BCZ Item Database Manager</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<style>
+:root{
+  --accent:#0066cc;--accent-dark:#003d7a;--accent-light:#e8f0fa;
+  --green:#1a8a3f;--green-light:#e6f5eb;
+  --red:#cc3333;--red-light:#fdeaea;
+  --orange:#e08a00;--orange-light:#fff8e1;
+  --text:#1a1a1a;--muted:#5c5c5c;--border:#d6d3ce;--input-bg:#fafaf9;
+  --shadow:0 2px 20px rgba(0,0,0,0.06);
+}
+*{margin:0;padding:0;box-sizing:border-box;}
+body{font-family:'Segoe UI',Tahoma,Geneva,Verdana,sans-serif;background:#fff;color:var(--text);min-height:100vh;}
+
+/* Login overlay */
+.login-overlay{position:fixed;inset:0;background:#fff;z-index:9999;display:flex;align-items:center;justify-content:center;}
+.login-overlay.hidden{display:none;}
+.login-box{text-align:center;max-width:360px;width:100%;padding:40px;}
+.login-box h2{font-size:28px;font-weight:700;color:var(--accent-dark);margin-bottom:8px;}
+.login-box p{font-size:14px;color:var(--muted);margin-bottom:24px;}
+.login-box input{width:100%;padding:12px 16px;border:2px solid var(--border);border-radius:8px;font-size:16px;text-align:center;letter-spacing:4px;font-family:inherit;}
+.login-box input:focus{border-color:var(--accent);outline:none;box-shadow:0 0 0 3px rgba(0,102,204,0.1);}
+.login-box .login-btn{margin-top:16px;width:100%;padding:12px;background:var(--accent);color:#fff;border:none;border-radius:8px;font-size:15px;font-weight:600;cursor:pointer;font-family:inherit;}
+.login-box .login-btn:hover{background:var(--accent-dark);}
+.login-err{color:var(--red);font-size:13px;margin-top:8px;display:none;}
+
+/* Loading */
+.loading-overlay{position:fixed;inset:0;background:rgba(255,255,255,0.92);z-index:9998;display:flex;align-items:center;justify-content:center;flex-direction:column;}
+.loading-overlay.hidden{display:none;}
+.spinner{width:48px;height:48px;border:4px solid var(--accent-light);border-top-color:var(--accent);border-radius:50%;animation:spin .8s linear infinite;}
+@keyframes spin{to{transform:rotate(360deg);}}
+.loading-text{margin-top:16px;font-size:16px;color:var(--muted);}
+
+/* Layout */
+.container{max-width:1200px;margin:0 auto;padding:20px;}
+.header{display:flex;align-items:center;justify-content:space-between;margin:20px 0 10px;flex-wrap:wrap;gap:12px;}
+.header h1{font-size:32px;font-weight:700;color:var(--accent-dark);}
+.back-link{display:inline-flex;align-items:center;gap:6px;font-size:14px;color:var(--accent);text-decoration:none;font-weight:600;}
+.back-link:hover{text-decoration:underline;}
+.back-link svg{width:16px;height:16px;}
+.subtitle{font-size:14px;color:var(--muted);margin-bottom:20px;}
+
+/* Cards */
+.card{background:#fff;padding:28px;border-radius:14px;box-shadow:var(--shadow);border:1px solid rgba(0,0,0,0.04);margin-bottom:20px;}
+.card-title{font-size:18px;font-weight:300;color:var(--accent-dark);margin-bottom:16px;padding-bottom:10px;border-bottom:2px solid var(--accent-light);}
+
+/* Buttons */
+.btn{display:inline-flex;align-items:center;gap:6px;padding:9px 18px;border-radius:7px;font-size:13px;font-weight:600;font-family:inherit;cursor:pointer;border:1px solid transparent;transition:all .15s;}
+.btn svg{width:16px;height:16px;}
+.btn-primary{background:var(--accent);color:#fff;border-color:var(--accent);}
+.btn-primary:hover{background:var(--accent-dark);}
+.btn-green{background:var(--green);color:#fff;border-color:var(--green);}
+.btn-green:hover{background:#14722f;}
+.btn-red{background:var(--red);color:#fff;border-color:var(--red);}
+.btn-red:hover{background:#a22;}
+.btn-outline{background:#fff;color:var(--accent);border-color:var(--accent);}
+.btn-outline:hover{background:var(--accent-light);}
+.btn-ghost{background:transparent;color:var(--muted);border-color:var(--border);}
+.btn-ghost:hover{background:#f5f5f5;color:var(--text);}
+.btn-sm{padding:6px 12px;font-size:12px;}
+.btn-row{display:flex;gap:8px;flex-wrap:wrap;}
+
+/* Stats bar */
+.stats{display:flex;gap:24px;flex-wrap:wrap;margin-bottom:20px;}
+.stat{font-size:13px;color:var(--muted);}
+.stat b{color:var(--text);font-size:15px;}
+
+/* Toolbar */
+.toolbar{display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-bottom:16px;}
+.toolbar input[type="text"]{flex:1;min-width:200px;padding:9px 14px;border:1px solid var(--border);border-radius:7px;font-size:14px;font-family:inherit;background:var(--input-bg);}
+.toolbar input:focus{border-color:var(--accent);outline:none;box-shadow:0 0 0 3px rgba(0,102,204,0.1);}
+
+/* Table */
+.table-wrap{overflow-x:auto;max-height:65vh;overflow-y:auto;border:1px solid #eee;border-radius:8px;}
+table{width:100%;border-collapse:collapse;font-size:13px;}
+thead th{position:sticky;top:0;background:var(--accent-light);color:var(--accent-dark);padding:10px 12px;text-align:left;font-weight:700;text-transform:uppercase;font-size:11px;letter-spacing:.3px;white-space:nowrap;z-index:2;cursor:pointer;user-select:none;}
+thead th:hover{background:#d0e3f5;}
+thead th .sort-icon{margin-left:4px;opacity:.4;font-size:10px;}
+tbody td{padding:8px 12px;border-bottom:1px solid #f0f0f0;vertical-align:middle;}
+tbody tr:hover{background:#f8f9fb;}
+tbody tr.selected{background:var(--accent-light);}
+.mono{font-family:'Consolas','Courier New',monospace;}
+.text-right{text-align:right;}
+.cb-cell{width:36px;text-align:center;}
+.cb-cell input{width:16px;height:16px;cursor:pointer;}
+.actions-cell{white-space:nowrap;}
+.edit-link{color:var(--accent);cursor:pointer;font-weight:600;font-size:12px;text-decoration:none;}
+.edit-link:hover{text-decoration:underline;}
+.del-link{color:var(--red);cursor:pointer;font-weight:600;font-size:12px;text-decoration:none;margin-left:10px;}
+.del-link:hover{text-decoration:underline;}
+
+/* Modal */
+.modal-bg{display:none;position:fixed;inset:0;background:rgba(0,0,0,0.4);z-index:5000;align-items:center;justify-content:center;}
+.modal-bg.open{display:flex;}
+.modal{background:#fff;border-radius:14px;padding:32px;max-width:560px;width:95%;box-shadow:0 20px 60px rgba(0,0,0,0.2);max-height:90vh;overflow-y:auto;}
+.modal h3{font-size:20px;font-weight:700;color:var(--accent-dark);margin-bottom:16px;}
+.modal .fg{margin-bottom:14px;}
+.modal label{display:block;font-size:12px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.3px;margin-bottom:4px;}
+.modal input{width:100%;padding:10px 12px;border:1px solid var(--border);border-radius:7px;font-size:14px;font-family:inherit;}
+.modal input:focus{border-color:var(--accent);outline:none;}
+.modal .btn-row{margin-top:20px;justify-content:flex-end;}
+
+/* History panel */
+.history-panel{max-height:300px;overflow-y:auto;}
+.history-item{display:flex;align-items:flex-start;gap:10px;padding:10px 0;border-bottom:1px solid #f0f0f0;font-size:13px;}
+.history-item:last-child{border:none;}
+.h-time{font-size:11px;color:var(--muted);white-space:nowrap;min-width:60px;}
+.h-desc{flex:1;color:var(--text);}
+.h-undo{font-size:11px;color:var(--accent);cursor:pointer;font-weight:600;white-space:nowrap;}
+.h-undo:hover{text-decoration:underline;}
+.badge{display:inline-block;font-size:10px;padding:2px 6px;border-radius:3px;font-weight:700;margin-right:4px;}
+.badge-add{background:var(--green-light);color:var(--green);}
+.badge-edit{background:var(--accent-light);color:var(--accent);}
+.badge-del{background:var(--red-light);color:var(--red);}
+.badge-import{background:var(--orange-light);color:var(--orange);}
+
+/* Upload area */
+.upload-area{border:2px dashed var(--border);border-radius:10px;padding:30px;text-align:center;cursor:pointer;transition:all .2s;background:var(--input-bg);}
+.upload-area:hover,.upload-area.drag-over{border-color:var(--accent);background:var(--accent-light);}
+.upload-area svg{width:36px;height:36px;color:var(--accent);margin-bottom:8px;}
+.upload-area .u-title{font-size:15px;font-weight:600;color:var(--text);}
+.upload-area .u-sub{font-size:12px;color:var(--muted);margin-top:2px;}
+
+/* Pagination */
+.pager{display:flex;align-items:center;justify-content:space-between;margin-top:12px;font-size:13px;color:var(--muted);}
+.pager-btns{display:flex;gap:4px;}
+.pager-btns button{padding:6px 12px;border:1px solid var(--border);border-radius:5px;background:#fff;cursor:pointer;font-family:inherit;font-size:12px;font-weight:600;color:var(--muted);}
+.pager-btns button:hover{background:var(--accent-light);color:var(--accent);}
+.pager-btns button.active{background:var(--accent);color:#fff;border-color:var(--accent);}
+.pager-btns button:disabled{opacity:.4;cursor:default;}
+
+.toast{position:fixed;bottom:24px;right:24px;padding:14px 20px;border-radius:8px;color:#fff;font-size:14px;font-weight:600;z-index:8000;opacity:0;transform:translateY(10px);transition:all .3s;pointer-events:none;}
+.toast.show{opacity:1;transform:translateY(0);}
+.toast-ok{background:var(--green);}
+.toast-err{background:var(--red);}
+</style>
+</head>
+<body>
+
+<!-- LOGIN -->
+<div class="login-overlay" id="loginOverlay">
+  <div class="login-box">
+    <h2>Item Database Manager</h2>
+    <p>Enter password to continue</p>
+    <input type="password" id="loginPass" placeholder="••••" onkeydown="if(event.key==='Enter')doLogin()">
+    <button class="login-btn" onclick="doLogin()">Unlock</button>
+    <div class="login-err" id="loginErr">Incorrect password</div>
+  </div>
+</div>
+
+<!-- LOADING -->
+<div class="loading-overlay hidden" id="loadingOverlay">
+  <div class="spinner"></div>
+  <div class="loading-text" id="loadingText">Loading items…</div>
+</div>
+
+<!-- TOAST -->
+<div class="toast" id="toast"></div>
+
+<!-- EDIT MODAL -->
+<div class="modal-bg" id="editModal">
+  <div class="modal">
+    <h3 id="modalTitle">Edit Item</h3>
+    <div class="fg">
+      <label>Item Code</label>
+      <input id="mItemCode" placeholder="e.g. 1208071">
+    </div>
+    <div class="fg">
+      <label>Product Name</label>
+      <input id="mProductName" placeholder="e.g. M 8 x 10 Hex socket head cap screws">
+    </div>
+    <div class="fg">
+      <label>Net Weight (kg)</label>
+      <input id="mWeight" type="number" step="0.0001" placeholder="e.g. 0.0099">
+    </div>
+    <div class="fg">
+      <label>Commodity Code (8-digit CN)</label>
+      <input id="mCnCode" placeholder="e.g. 73181562">
+    </div>
+    <div class="btn-row">
+      <button class="btn btn-ghost" onclick="closeModal()">Cancel</button>
+      <button class="btn btn-primary" onclick="saveModal()">Save</button>
+    </div>
+  </div>
+</div>
+
+<!-- IMPORT MODAL -->
+<div class="modal-bg" id="importModal">
+  <div class="modal">
+    <h3>Import Items from Excel</h3>
+    <p style="font-size:13px;color:var(--muted);margin-bottom:16px;">Columns: Item Code, Product Name, Net Weight (kg), Commodity Code (8-digit). Existing items with the same code will be overwritten.</p>
+    <div class="upload-area" id="importUpload" onclick="document.getElementById('importFile').click()">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M17 8l-5-5-5 5M12 3v12"/></svg>
+      <div class="u-title">Click or drag &amp; drop Excel file</div>
+      <div class="u-sub">.xlsx — columns: Item Code, Product Name, Net Weight, CN Code</div>
+      <input type="file" id="importFile" accept=".xlsx,.xls" style="display:none" onchange="handleImport(this)">
+    </div>
+    <div id="importPreview" style="display:none;margin-top:16px;">
+      <div style="font-size:14px;font-weight:600;" id="importInfo"></div>
+      <div class="btn-row" style="margin-top:12px;">
+        <button class="btn btn-ghost" onclick="closeImportModal()">Cancel</button>
+        <button class="btn btn-green" onclick="confirmImport()">Import All</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- MAIN -->
+<div class="container">
+  <a class="back-link" href="index.html">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 12H5M12 19l-7-7 7-7"/></svg>
+    Back to calculator
+  </a>
+
+  <div class="header">
+    <h1>Item Database Manager</h1>
+    <div class="btn-row">
+      <button class="btn btn-green" onclick="exportItems()">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M7 10l5 5 5-5M12 15V3"/></svg>
+        Export items.json
+      </button>
+    </div>
+  </div>
+  <div class="subtitle">Manage the item catalogue. All changes are tracked with timestamps. Export the updated items.json to deploy.</div>
+
+  <!-- STATS -->
+  <div class="stats" id="statsBar"></div>
+
+  <!-- ACTIONS -->
+  <div class="card">
+    <div class="btn-row">
+      <button class="btn btn-primary" onclick="openAddModal()">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+        Add Item
+      </button>
+      <button class="btn btn-outline" onclick="openImportModal()">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M17 8l-5-5-5 5M12 3v12"/></svg>
+        Import from Excel
+      </button>
+      <button class="btn btn-red" id="bulkDelBtn" style="display:none" onclick="bulkDelete()">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6"/><path d="M10 11v6M14 11v6"/></svg>
+        Delete selected (<span id="selCount">0</span>)
+      </button>
+    </div>
+  </div>
+
+  <!-- SEARCH & TABLE -->
+  <div class="card">
+    <div class="toolbar">
+      <input type="text" id="searchBox" placeholder="Search by item code, name or CN code…" oninput="onSearch()">
+      <button class="btn btn-ghost" onclick="toggleHistory()">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+        History (<span id="histCount">0</span>)
+      </button>
+    </div>
+
+    <!-- HISTORY (hidden by default) -->
+    <div class="history-panel" id="historyPanel" style="display:none;margin-bottom:16px;padding:12px;background:#fafafa;border-radius:8px;"></div>
+
+    <div class="table-wrap" id="tableWrap">
+      <table>
+        <thead>
+          <tr>
+            <th class="cb-cell"><input type="checkbox" id="selectAll" onchange="toggleSelectAll()"></th>
+            <th onclick="sortBy('code')">Item Code <span class="sort-icon" id="sort-code">▲</span></th>
+            <th onclick="sortBy('name')">Product Name <span class="sort-icon" id="sort-name"></span></th>
+            <th onclick="sortBy('weight')">Net Weight (kg) <span class="sort-icon" id="sort-weight"></span></th>
+            <th onclick="sortBy('cn')">CN Code <span class="sort-icon" id="sort-cn"></span></th>
+            <th>Actions</th>
+          </tr>
+        </thead>
+        <tbody id="tBody"></tbody>
+      </table>
+    </div>
+    <div class="pager" id="pager"></div>
+  </div>
+</div>
+
+<script>
+const PASS='369*';
+let ITEMS={};
+let filteredKeys=[];
+let selectedKeys=new Set();
+let history=[];
+let currentPage=1;
+const PAGE_SIZE=50;
+let sortCol='code',sortDir=1;
+let editingKey=null;
+let importBuffer=[];
+
+// === LOGIN ===
+function doLogin(){
+  if(document.getElementById('loginPass').value===PASS){
+    document.getElementById('loginOverlay').classList.add('hidden');
+    loadItems();
+  } else {
+    document.getElementById('loginErr').style.display='block';
+    document.getElementById('loginPass').value='';
+    document.getElementById('loginPass').focus();
+  }
+}
+
+// === LOAD ===
+async function loadItems(){
+  document.getElementById('loadingOverlay').classList.remove('hidden');
+  try{
+    ITEMS=await(await fetch('items.json')).json();
+    // Load history from localStorage
+    try{history=JSON.parse(localStorage.getItem('cbam_item_history')||'[]');}catch(e){history=[];}
+    // Apply unsaved changes from history
+    applyHistory();
+  }catch(e){
+    document.getElementById('loadingText').textContent='Error: '+e.message;
+    return;
+  }
+  document.getElementById('loadingOverlay').classList.add('hidden');
+  refreshAll();
+}
+
+function applyHistory(){
+  for(const h of history){
+    if(h.type==='add'||h.type==='edit'||h.type==='import-item'){
+      ITEMS[h.key]=[h.after.name,h.after.weight,h.after.cn];
+    }else if(h.type==='delete'){
+      delete ITEMS[h.key];
+    }
+  }
+}
+
+function saveHistory(){
+  try{localStorage.setItem('cbam_item_history',JSON.stringify(history));}catch(e){}
+}
+
+function pushHistory(entry){
+  entry.time=new Date().toISOString();
+  history.push(entry);
+  saveHistory();
+  document.getElementById('histCount').textContent=history.length;
+}
+
+// === REFRESH ===
+function refreshAll(){
+  updateStats();
+  onSearch();
+  updateHistoryPanel();
+  updateSelectionUI();
+}
+
+function updateStats(){
+  const n=Object.keys(ITEMS).length;
+  const cns=new Set(Object.values(ITEMS).map(v=>v[2]));
+  document.getElementById('statsBar').innerHTML=
+    '<div class="stat"><b>'+n.toLocaleString()+'</b> items</div>'+
+    '<div class="stat"><b>'+cns.size+'</b> unique CN codes</div>'+
+    '<div class="stat"><b>'+history.length+'</b> changes</div>';
+  document.getElementById('histCount').textContent=history.length;
+}
+
+// === SEARCH & SORT ===
+function onSearch(){
+  const q=document.getElementById('searchBox').value.toLowerCase().trim();
+  filteredKeys=Object.keys(ITEMS).filter(k=>{
+    if(!q)return true;
+    const v=ITEMS[k];
+    return k.toLowerCase().includes(q)||v[0].toLowerCase().includes(q)||v[2].toLowerCase().includes(q);
+  });
+  doSort();
+  currentPage=1;
+  renderTable();
+}
+
+function sortBy(col){
+  if(sortCol===col)sortDir*=-1;
+  else{sortCol=col;sortDir=1;}
+  document.querySelectorAll('.sort-icon').forEach(s=>s.textContent='');
+  const el=document.getElementById('sort-'+col);
+  if(el)el.textContent=sortDir===1?'▲':'▼';
+  doSort();
+  renderTable();
+}
+
+function doSort(){
+  filteredKeys.sort((a,b)=>{
+    const va=ITEMS[a],vb=ITEMS[b];
+    let cmp=0;
+    if(sortCol==='code')cmp=a.localeCompare(b,undefined,{numeric:true});
+    else if(sortCol==='name')cmp=(va[0]||'').localeCompare(vb[0]||'');
+    else if(sortCol==='weight')cmp=(va[1]||0)-(vb[1]||0);
+    else if(sortCol==='cn')cmp=(va[2]||'').localeCompare(vb[2]||'');
+    return cmp*sortDir;
+  });
+}
+
+// === RENDER TABLE ===
+function renderTable(){
+  const start=(currentPage-1)*PAGE_SIZE;
+  const pageKeys=filteredKeys.slice(start,start+PAGE_SIZE);
+  const tbody=document.getElementById('tBody');
+  tbody.innerHTML='';
+  for(const k of pageKeys){
+    const v=ITEMS[k];
+    const sel=selectedKeys.has(k);
+    const tr=document.createElement('tr');
+    if(sel)tr.classList.add('selected');
+    tr.innerHTML=
+      '<td class="cb-cell"><input type="checkbox" '+(sel?'checked':'')+' onchange="toggleSelect(\''+k+'\',this.checked)"></td>'+
+      '<td class="mono">'+k+'</td>'+
+      '<td>'+v[0]+'</td>'+
+      '<td class="text-right">'+v[1]+'</td>'+
+      '<td class="mono">'+fmtCn(v[2])+'</td>'+
+      '<td class="actions-cell"><a class="edit-link" onclick="openEditModal(\''+k+'\')">Edit</a><a class="del-link" onclick="deleteItem(\''+k+'\')">Delete</a></td>';
+    tbody.appendChild(tr);
+  }
+  renderPager();
+}
+
+function fmtCn(cn){if(!cn)return'';if(cn.length===8)return cn.slice(0,4)+' '+cn.slice(4,6)+' '+cn.slice(6);return cn;}
+
+function renderPager(){
+  const total=filteredKeys.length;
+  const pages=Math.ceil(total/PAGE_SIZE)||1;
+  const start=(currentPage-1)*PAGE_SIZE+1;
+  const end=Math.min(currentPage*PAGE_SIZE,total);
+  let html='<div>Showing '+start+'–'+end+' of '+total.toLocaleString()+'</div><div class="pager-btns">';
+  html+='<button '+(currentPage<=1?'disabled':'')+' onclick="goPage('+(currentPage-1)+')">‹ Prev</button>';
+  const range=3;
+  let s=Math.max(1,currentPage-range),e=Math.min(pages,currentPage+range);
+  if(s>1)html+='<button onclick="goPage(1)">1</button>';
+  if(s>2)html+='<button disabled>…</button>';
+  for(let i=s;i<=e;i++) html+='<button class="'+(i===currentPage?'active':'')+'" onclick="goPage('+i+')">'+i+'</button>';
+  if(e<pages-1)html+='<button disabled>…</button>';
+  if(e<pages)html+='<button onclick="goPage('+pages+')">'+pages+'</button>';
+  html+='<button '+(currentPage>=pages?'disabled':'')+' onclick="goPage('+(currentPage+1)+')">Next ›</button></div>';
+  document.getElementById('pager').innerHTML=html;
+}
+
+function goPage(p){currentPage=p;renderTable();document.getElementById('tableWrap').scrollTop=0;}
+
+// === SELECTION ===
+function toggleSelect(key,checked){
+  if(checked)selectedKeys.add(key);else selectedKeys.delete(key);
+  updateSelectionUI();
+  renderTable();
+}
+function toggleSelectAll(){
+  const checked=document.getElementById('selectAll').checked;
+  const start=(currentPage-1)*PAGE_SIZE;
+  const pageKeys=filteredKeys.slice(start,start+PAGE_SIZE);
+  pageKeys.forEach(k=>{if(checked)selectedKeys.add(k);else selectedKeys.delete(k);});
+  updateSelectionUI();
+  renderTable();
+}
+function updateSelectionUI(){
+  const n=selectedKeys.size;
+  document.getElementById('selCount').textContent=n;
+  document.getElementById('bulkDelBtn').style.display=n>0?'inline-flex':'none';
+}
+
+// === ADD / EDIT MODAL ===
+function openAddModal(){
+  editingKey=null;
+  document.getElementById('modalTitle').textContent='Add New Item';
+  document.getElementById('mItemCode').value='';
+  document.getElementById('mItemCode').disabled=false;
+  document.getElementById('mProductName').value='';
+  document.getElementById('mWeight').value='';
+  document.getElementById('mCnCode').value='';
+  document.getElementById('editModal').classList.add('open');
+}
+function openEditModal(key){
+  editingKey=key;
+  const v=ITEMS[key];
+  document.getElementById('modalTitle').textContent='Edit Item: '+key;
+  document.getElementById('mItemCode').value=key;
+  document.getElementById('mItemCode').disabled=true;
+  document.getElementById('mProductName').value=v[0];
+  document.getElementById('mWeight').value=v[1];
+  document.getElementById('mCnCode').value=v[2];
+  document.getElementById('editModal').classList.add('open');
+}
+function closeModal(){document.getElementById('editModal').classList.remove('open');}
+
+function saveModal(){
+  const code=document.getElementById('mItemCode').value.trim();
+  const name=document.getElementById('mProductName').value.trim();
+  const weight=parseFloat(document.getElementById('mWeight').value)||0;
+  const cn=document.getElementById('mCnCode').value.trim();
+  if(!code){toast('Item Code is required','err');return;}
+  if(!name){toast('Product Name is required','err');return;}
+
+  if(editingKey){
+    // Edit
+    const old=ITEMS[editingKey];
+    pushHistory({type:'edit',key:editingKey,before:{name:old[0],weight:old[1],cn:old[2]},after:{name,weight,cn}});
+    ITEMS[editingKey]=[name,weight,cn];
+    toast('Item '+editingKey+' updated');
+  }else{
+    // Add
+    const before=ITEMS[code]?{name:ITEMS[code][0],weight:ITEMS[code][1],cn:ITEMS[code][2]}:null;
+    pushHistory({type:'add',key:code,before,after:{name,weight,cn}});
+    ITEMS[code]=[name,weight,cn];
+    toast('Item '+code+' added');
+  }
+  closeModal();
+  refreshAll();
+}
+
+// === DELETE ===
+function deleteItem(key){
+  if(!confirm('Delete item '+key+'?'))return;
+  const old=ITEMS[key];
+  pushHistory({type:'delete',key,before:{name:old[0],weight:old[1],cn:old[2]},after:null});
+  delete ITEMS[key];
+  selectedKeys.delete(key);
+  toast('Item '+key+' deleted');
+  refreshAll();
+}
+function bulkDelete(){
+  const n=selectedKeys.size;
+  if(!confirm('Delete '+n+' selected item(s)?'))return;
+  for(const key of selectedKeys){
+    const old=ITEMS[key];
+    if(old)pushHistory({type:'delete',key,before:{name:old[0],weight:old[1],cn:old[2]},after:null});
+    delete ITEMS[key];
+  }
+  selectedKeys.clear();
+  toast(n+' items deleted');
+  refreshAll();
+}
+
+// === IMPORT ===
+function openImportModal(){
+  importBuffer=[];
+  document.getElementById('importPreview').style.display='none';
+  document.getElementById('importFile').value='';
+  document.getElementById('importModal').classList.add('open');
+}
+function closeImportModal(){document.getElementById('importModal').classList.remove('open');}
+
+const iu=document.getElementById('importUpload');
+iu.addEventListener('dragover',e=>{e.preventDefault();iu.classList.add('drag-over');});
+iu.addEventListener('dragleave',()=>iu.classList.remove('drag-over'));
+iu.addEventListener('drop',e=>{e.preventDefault();iu.classList.remove('drag-over');if(e.dataTransfer.files.length)processImport(e.dataTransfer.files[0]);});
+
+function handleImport(input){if(input.files.length)processImport(input.files[0]);}
+
+function processImport(file){
+  const reader=new FileReader();
+  reader.onload=function(e){
+    const data=new Uint8Array(e.target.result);
+    const wb=XLSX.read(data,{type:'array'});
+    const ws=wb.Sheets[wb.SheetNames[0]];
+    const json=XLSX.utils.sheet_to_json(ws,{header:1});
+    importBuffer=[];
+    const startRow=(json.length>0&&typeof json[0][0]==='string'&&isNaN(json[0][0]))?1:0;
+    for(let i=startRow;i<json.length;i++){
+      const r=json[i];if(!r||!r[0])continue;
+      const code=String(r[0]).trim();
+      const name=String(r[1]||'').trim().substring(0,120).replace(/\s+/g,' ');
+      const weight=parseFloat(r[2])||0;
+      let cn=String(r[3]||'').trim();
+      if(cn.length>8)cn=cn.substring(0,8);
+      importBuffer.push({code,name,weight,cn});
+    }
+    const existing=importBuffer.filter(r=>ITEMS[r.code]).length;
+    document.getElementById('importInfo').textContent=importBuffer.length+' items found ('+existing+' will overwrite existing)';
+    document.getElementById('importPreview').style.display='block';
+  };
+  reader.readAsArrayBuffer(file);
+}
+
+function confirmImport(){
+  let added=0,updated=0;
+  for(const r of importBuffer){
+    const before=ITEMS[r.code]?{name:ITEMS[r.code][0],weight:ITEMS[r.code][1],cn:ITEMS[r.code][2]}:null;
+    pushHistory({type:'import-item',key:r.code,before,after:{name:r.name,weight:r.weight,cn:r.cn}});
+    if(before)updated++;else added++;
+    ITEMS[r.code]=[r.name,r.weight,r.cn];
+  }
+  closeImportModal();
+  toast(added+' added, '+updated+' updated');
+  refreshAll();
+}
+
+// === HISTORY ===
+function toggleHistory(){
+  const p=document.getElementById('historyPanel');
+  p.style.display=p.style.display==='none'?'block':'none';
+  if(p.style.display==='block')updateHistoryPanel();
+}
+function updateHistoryPanel(){
+  const p=document.getElementById('historyPanel');
+  if(!history.length){p.innerHTML='<div style="font-size:13px;color:var(--muted);text-align:center;padding:16px;">No changes yet</div>';return;}
+  let html='';
+  for(let i=history.length-1;i>=0;i--){
+    const h=history[i];
+    const t=new Date(h.time);
+    const ts=t.toLocaleTimeString('en',{hour:'2-digit',minute:'2-digit',second:'2-digit'});
+    const ds=t.toLocaleDateString('en',{day:'numeric',month:'short'});
+    let badge='',desc='';
+    if(h.type==='add'){badge='<span class="badge badge-add">ADD</span>';desc='Added item <b>'+h.key+'</b>';}
+    else if(h.type==='edit'){badge='<span class="badge badge-edit">EDIT</span>';desc='Edited item <b>'+h.key+'</b>';}
+    else if(h.type==='delete'){badge='<span class="badge badge-del">DEL</span>';desc='Deleted item <b>'+h.key+'</b>';}
+    else if(h.type==='import-item'){badge='<span class="badge badge-import">IMP</span>';desc=(h.before?'Updated':'Added')+' item <b>'+h.key+'</b>';}
+    html+='<div class="history-item"><div class="h-time">'+ds+'<br>'+ts+'</div><div class="h-desc">'+badge+desc+'</div><div class="h-undo" onclick="undoChange('+i+')">Undo</div></div>';
+  }
+  p.innerHTML=html;
+}
+
+function undoChange(idx){
+  const h=history[idx];
+  if(h.type==='add'||h.type==='import-item'){
+    if(h.before){ITEMS[h.key]=[h.before.name,h.before.weight,h.before.cn];}
+    else{delete ITEMS[h.key];}
+  }else if(h.type==='edit'){
+    ITEMS[h.key]=[h.before.name,h.before.weight,h.before.cn];
+  }else if(h.type==='delete'){
+    ITEMS[h.key]=[h.before.name,h.before.weight,h.before.cn];
+  }
+  history.splice(idx,1);
+  saveHistory();
+  toast('Change undone');
+  refreshAll();
+}
+
+// === EXPORT ===
+function exportItems(){
+  const json=JSON.stringify(ITEMS,null,null).replace(/,"/g,',\n"');
+  const blob=new Blob([json],{type:'application/json'});
+  const url=URL.createObjectURL(blob);
+  const a=document.createElement('a');
+  a.href=url;a.download='items.json';a.click();
+  URL.revokeObjectURL(url);
+  toast('items.json exported');
+}
+
+// === TOAST ===
+function toast(msg,type){
+  const t=document.getElementById('toast');
+  t.textContent=msg;
+  t.className='toast show '+(type==='err'?'toast-err':'toast-ok');
+  setTimeout(()=>t.classList.remove('show'),2500);
+}
+
+// === INIT ===
+window.onload=()=>document.getElementById('loginPass').focus();
+</script>
+</body>
+</html>
