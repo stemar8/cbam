@@ -363,6 +363,27 @@ let selectedYear='2026', currentCnEntries=[], selectedCnIdx=-1, currentMode='man
 
 const CBAM_FACTORS={2026:0.975,2027:0.95,2028:0.9,2029:0.775,2030:0.515,2031:0.39,2032:0.265,2033:0.14,2034:0.0};
 
+const EU_COUNTRIES=new Set(['AUT','BEL','BGR','HRV','CYP','CZE','DNK','EST','FIN','FRA','DEU','GRC','HUN','IRL','ITA','LVA','LTU','LUX','MLT','NLD','POL','PRT','ROU','SVK','SVN','ESP','SWE']);
+
+// Helper: find best CN match in std entries, with fallback to Other Countries
+function findStdEntries(cn8, country){
+  let entries=STD_VALUES[country];
+  let bestIdx=-1,bestLen=0,source=country;
+  if(entries){
+    entries.forEach((e,idx)=>{const p=commonPrefix(e[0],cn8);if(p>bestLen){bestLen=p;bestIdx=idx;}});
+  }
+  if(bestLen<4){
+    // Fallback to Other Countries (skip for EU origins)
+    const oc=STD_VALUES['Other Countries and Territories'];
+    if(oc){
+      let oIdx=-1,oLen=0;
+      oc.forEach((e,idx)=>{const p=commonPrefix(e[0],cn8);if(p>oLen){oLen=p;oIdx=idx;}});
+      if(oLen>=4){entries=oc;bestIdx=oIdx;bestLen=oLen;source='Other Countries and Territories';}
+    }
+  }
+  return bestLen>=4?{entries,bestIdx,source}:null;
+}
+
 async function loadData(){
   const p=document.getElementById('loadingProgress');
   try{
@@ -496,20 +517,21 @@ function selectCn(it){
   } else {
     // Benchmark-only CN — find best parent in std values for emissions, use this CN for benchmark
     const country=document.getElementById('country').value;
-    if(!country||!STD_VALUES[country]){
+    if(!country){
       fillBmOnly(it.cn,'');
       document.getElementById('noteBox').textContent='Select a country of origin to populate emissions.';
       document.getElementById('noteBox').style.display='block';
       calculate();return;
     }
-    const entries=STD_VALUES[country];
-    let bestIdx=-1,bestLen=0;
-    entries.forEach((e,idx)=>{const p=commonPrefix(e[0],it.cn);if(p>bestLen){bestLen=p;bestIdx=idx;}});
-    if(bestIdx>=0&&bestLen>=4){
-      selectedCnIdx=bestIdx;
-      onCnSelected(bestIdx,it.cn);
+    const result=findStdEntries(it.cn, country);
+    if(result){
+      selectedCnIdx=result.bestIdx;
+      onCnSelected(result.bestIdx, it.cn, result.entries);
+      if(result.source!==country){
+        document.getElementById('noteBox').textContent='Used default values: '+result.source;
+        document.getElementById('noteBox').style.display='block';
+      }
     } else {
-      // No std match — fill benchmark only
       selectedCnIdx=-1;
       fillBmOnly(it.cn,'');
       calculate();
@@ -550,18 +572,21 @@ function onItemSelected(key){
   document.getElementById('qtyInfo').textContent=pcs.toLocaleString('en')+' pcs × '+wKg+' kg = '+(pcs*wKg).toFixed(2)+' kg = '+t.toFixed(4)+' t';
   document.getElementById('pcDetail').innerHTML='Weight: <span>'+wKg+' kg/pc</span> · CN code: <span>'+formatCn(cn8)+'</span> · Total: <span>'+t.toFixed(4)+' t</span>';
   const country=document.getElementById('country').value;
-  if(!country||!STD_VALUES[country]){
+  if(!country){
     document.getElementById('noteBox').textContent='Select a country of origin to populate emissions and benchmark values.';
     document.getElementById('noteBox').style.display='block';calculate();return;
   }
-  const entries=STD_VALUES[country];let bestIdx=-1,bestLen=0;
-  entries.forEach((e,idx)=>{const p=commonPrefix(e[0],cn8);if(p>bestLen){bestLen=p;bestIdx=idx;}});
-  if(bestIdx>=0&&bestLen>=4){
-    selectedCnIdx=bestIdx;onCnSelected(bestIdx,cn8);
-    const mc=entries[bestIdx][0];
-    if(mc!==cn8){const nb=document.getElementById('noteBox');nb.textContent='Matched CN code from default values: '+formatCn(mc)+' (closest match for '+formatCn(cn8)+')';nb.style.display='block';}
+  const result=findStdEntries(cn8, country);
+  if(result){
+    selectedCnIdx=result.bestIdx;
+    onCnSelected(result.bestIdx, cn8, result.entries);
+    const mc=result.entries[result.bestIdx][0];
+    let noteMsg='';
+    if(mc!==cn8) noteMsg='Matched CN code: '+formatCn(mc)+' (closest match for '+formatCn(cn8)+')';
+    if(result.source!==country) noteMsg+=(noteMsg?' | ':'')+'Used default values: '+result.source;
+    if(noteMsg){const nb=document.getElementById('noteBox');nb.textContent=noteMsg;nb.style.display='block';}
   }else{
-    document.getElementById('noteBox').textContent='No matching default value found for CN code '+formatCn(cn8)+' in '+country+'.';
+    document.getElementById('noteBox').textContent='No matching default value found for CN code '+formatCn(cn8)+'.';
     document.getElementById('noteBox').style.display='block';fillBmOnly(cn8,'');
   }
   calculate();
@@ -577,10 +602,11 @@ function fillBmOnly(cn,route){
     if(r.matchedCn&&r.matchedCn!==cn)t+=' [code '+formatCn(r.matchedCn)+']';binfo.textContent=t;}
 }
 
-function onCnSelected(idx,bmCnOverride){
+function onCnSelected(idx,bmCnOverride,entriesOverride){
   const country=document.getElementById('country').value;
-  if(!country||!STD_VALUES[country])return;
-  const entry=STD_VALUES[country][idx],cn=entry[0],sr=(entry[5]||'').trim();
+  const stdSource=entriesOverride||(country&&STD_VALUES[country]);
+  if(!stdSource)return;
+  const entry=stdSource[idx],cn=entry[0],sr=(entry[5]||'').trim();
   const bmCn=bmCnOverride||cn; // use item CN8 for benchmark when available, otherwise std CN
   const yi=selectedYear==='2026'?2:selectedYear==='2027'?3:4,val=entry[yi];
   const ei=document.getElementById('emissions'),bi=document.getElementById('benchmark');
