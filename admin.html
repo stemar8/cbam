@@ -257,6 +257,7 @@ tbody tr.selected{background:var(--accent-light);}
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
         History (<span id="histCount">0</span>)
       </button>
+      <button class="btn btn-ghost btn-sm" onclick="clearAllHistory()" title="Clear all history and reload original data">Clear history</button>
     </div>
 
     <!-- HISTORY (hidden by default) -->
@@ -292,6 +293,7 @@ const PAGE_SIZE=50;
 let sortCol='code',sortDir=1;
 let editingKey=null;
 let importBuffer=[];
+let importFileName='';
 
 // === LOGIN ===
 function doLogin(){
@@ -324,16 +326,34 @@ async function loadItems(){
 
 function applyHistory(){
   for(const h of history){
-    if(h.type==='add'||h.type==='edit'||h.type==='import-item'){
+    if(h.type==='add'||h.type==='edit'){
       ITEMS[h.key]=[h.after.name,h.after.weight,h.after.cn];
     }else if(h.type==='delete'){
       delete ITEMS[h.key];
+    }else if(h.type==='import-batch'){
+      for(const item of h.items){
+        ITEMS[item.key]=[item.after.name,item.after.weight,item.after.cn];
+      }
     }
   }
 }
 
 function saveHistory(){
-  try{localStorage.setItem('cbam_item_history',JSON.stringify(history));}catch(e){}
+  try{
+    const json=JSON.stringify(history);
+    localStorage.setItem('cbam_item_history',json);
+  }catch(e){
+    // localStorage full — trim oldest entries and retry
+    console.warn('localStorage full, trimming history…',e);
+    while(history.length>1){
+      history.shift();
+      try{localStorage.setItem('cbam_item_history',JSON.stringify(history));return;}catch(e2){}
+    }
+    // Still fails — clear history
+    history=[];
+    try{localStorage.removeItem('cbam_item_history');}catch(e3){}
+    toast('History too large — oldest entries removed','err');
+  }
 }
 
 function pushHistory(entry){
@@ -500,11 +520,14 @@ function saveModal(){
     ITEMS[editingKey]=[name,weight,cn];
     toast('Item '+editingKey+' updated');
   }else{
-    // Add
+    // Add — check if already exists
+    if(ITEMS[code]){
+      if(!confirm('Item '+code+' already exists:\n"'+ITEMS[code][0]+'"\n\nOverwrite with new values?'))return;
+    }
     const before=ITEMS[code]?{name:ITEMS[code][0],weight:ITEMS[code][1],cn:ITEMS[code][2]}:null;
     pushHistory({type:'add',key:code,before,after:{name,weight,cn}});
     ITEMS[code]=[name,weight,cn];
-    toast('Item '+code+' added');
+    toast(before?'Item '+code+' overwritten':'Item '+code+' added');
   }
   closeModal();
   refreshAll();
@@ -550,6 +573,7 @@ iu.addEventListener('drop',e=>{e.preventDefault();iu.classList.remove('drag-over
 function handleImport(input){if(input.files.length)processImport(input.files[0]);}
 
 function processImport(file){
+  importFileName=file.name;
   const reader=new FileReader();
   reader.onload=function(e){
     const data=new Uint8Array(e.target.result);
@@ -575,16 +599,53 @@ function processImport(file){
 }
 
 function confirmImport(){
-  let added=0,updated=0;
-  for(const r of importBuffer){
-    const before=ITEMS[r.code]?{name:ITEMS[r.code][0],weight:ITEMS[r.code][1],cn:ITEMS[r.code][2]}:null;
-    pushHistory({type:'import-item',key:r.code,before,after:{name:r.name,weight:r.weight,cn:r.cn}});
-    if(before)updated++;else added++;
-    ITEMS[r.code]=[r.name,r.weight,r.cn];
-  }
+  if(!importBuffer.length)return;
   closeImportModal();
-  toast(added+' added, '+updated+' updated');
-  refreshAll();
+
+  // Show loading overlay with progress
+  const overlay=document.getElementById('loadingOverlay');
+  const loadText=document.getElementById('loadingText');
+  overlay.classList.remove('hidden');
+  loadText.textContent='Importing 0 / '+importBuffer.length+'…';
+
+  const batchItems=[];
+  let added=0,updated=0;
+  let i=0;
+  const CHUNK=500;
+
+  function processChunk(){
+    const end=Math.min(i+CHUNK,importBuffer.length);
+    for(;i<end;i++){
+      const r=importBuffer[i];
+      const before=ITEMS[r.code]?{name:ITEMS[r.code][0],weight:ITEMS[r.code][1],cn:ITEMS[r.code][2]}:null;
+      batchItems.push({key:r.code,before,after:{name:r.name,weight:r.weight,cn:r.cn}});
+      if(before)updated++;else added++;
+      ITEMS[r.code]=[r.name,r.weight,r.cn];
+    }
+    loadText.textContent='Importing '+i+' / '+importBuffer.length+'…';
+
+    if(i<importBuffer.length){
+      setTimeout(processChunk,0);
+    }else{
+      // Save single batch history entry
+      const entry={
+        type:'import-batch',
+        time:new Date().toISOString(),
+        fileName:importFileName||'Excel',
+        count:batchItems.length,
+        added:added,
+        updated:updated,
+        items:batchItems
+      };
+      history.push(entry);
+      saveHistory();
+
+      overlay.classList.add('hidden');
+      toast(added+' added, '+updated+' updated');
+      refreshAll();
+    }
+  }
+  processChunk();
 }
 
 // === HISTORY ===
@@ -606,15 +667,44 @@ function updateHistoryPanel(){
     if(h.type==='add'){badge='<span class="badge badge-add">ADD</span>';desc='Added item <b>'+h.key+'</b>';}
     else if(h.type==='edit'){badge='<span class="badge badge-edit">EDIT</span>';desc='Edited item <b>'+h.key+'</b>';}
     else if(h.type==='delete'){badge='<span class="badge badge-del">DEL</span>';desc='Deleted item <b>'+h.key+'</b>';}
-    else if(h.type==='import-item'){badge='<span class="badge badge-import">IMP</span>';desc=(h.before?'Updated':'Added')+' item <b>'+h.key+'</b>';}
-    html+='<div class="history-item"><div class="h-time">'+ds+'<br>'+ts+'</div><div class="h-desc">'+badge+desc+'</div><div class="h-undo" onclick="undoChange('+i+')">Undo</div></div>';
+    else if(h.type==='import-batch'){badge='<span class="badge badge-import">IMPORT</span>';desc='Imported <b>'+h.count+'</b> items from <b>'+h.fileName+'</b> ('+h.added+' new, '+h.updated+' updated)';}
+    html+='<div class="history-item"><div class="h-time">'+ds+'<br>'+ts+'</div><div class="h-desc">'+badge+desc+'</div><div class="h-undo" onclick="undoChange('+i+')">Revert</div></div>';
   }
   p.innerHTML=html;
 }
 
 function undoChange(idx){
   const h=history[idx];
-  if(h.type==='add'||h.type==='import-item'){
+  if(h.type==='import-batch'){
+    if(!confirm('Revert entire import of '+h.count+' items from "'+h.fileName+'"?'))return;
+    // Show progress
+    const overlay=document.getElementById('loadingOverlay');
+    const loadText=document.getElementById('loadingText');
+    overlay.classList.remove('hidden');
+    loadText.textContent='Reverting import…';
+    let j=0;
+    const CHUNK=500;
+    function revertChunk(){
+      const end=Math.min(j+CHUNK,h.items.length);
+      for(;j<end;j++){
+        const item=h.items[j];
+        if(item.before){ITEMS[item.key]=[item.before.name,item.before.weight,item.before.cn];}
+        else{delete ITEMS[item.key];}
+      }
+      loadText.textContent='Reverting '+j+' / '+h.items.length+'…';
+      if(j<h.items.length){setTimeout(revertChunk,0);}
+      else{
+        history.splice(idx,1);
+        saveHistory();
+        overlay.classList.add('hidden');
+        toast(h.count+' items reverted');
+        refreshAll();
+      }
+    }
+    revertChunk();
+    return;
+  }
+  if(h.type==='add'){
     if(h.before){ITEMS[h.key]=[h.before.name,h.before.weight,h.before.cn];}
     else{delete ITEMS[h.key];}
   }else if(h.type==='edit'){
@@ -624,11 +714,18 @@ function undoChange(idx){
   }
   history.splice(idx,1);
   saveHistory();
-  toast('Change undone');
+  toast('Change reverted');
   refreshAll();
 }
 
 // === EXPORT ===
+function clearAllHistory(){
+  if(!confirm('Clear all change history and reload original items.json data?\n\nAll unsaved changes will be lost.'))return;
+  history=[];
+  try{localStorage.removeItem('cbam_item_history');}catch(e){}
+  loadItems();
+}
+
 function exportItems(){
   const json=JSON.stringify(ITEMS,null,null).replace(/,"/g,',\n"');
   const blob=new Blob([json],{type:'application/json'});
