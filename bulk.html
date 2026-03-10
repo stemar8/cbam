@@ -450,146 +450,126 @@ function findBmFast(cn,sr){
 
 function runCalculation(){
   if(!uploadedRows.length)return;
+
+  // Show overlay, then run calculation after browser paints it
+  const overlay=document.getElementById('loadingOverlay');
+  const loadText=document.getElementById('loadingText');
+  document.getElementById('loadingProgress').textContent='';
+  overlay.classList.remove('hidden');
+  loadText.textContent='Calculating '+uploadedRows.length+' rows…';
+
+  setTimeout(function(){
+    try{ doCalculation(); }
+    catch(err){ console.error(err); alert('Calculation error: '+err.message); }
+    overlay.classList.add('hidden');
+  },50);
+}
+
+function doCalculation(){
   const year=document.getElementById('year').value;
   const ets=parseFloat(document.getElementById('etsPrice').value)||90;
   const factor=parseFloat(document.getElementById('factor').value)||0.975;
   const yearIdx=year==='2026'?2:year==='2027'?3:4;
 
-  // Build index once
   if(!bmIndex)buildBmIndex();
-
   resultRows=[];
-  const overlay=document.getElementById('loadingOverlay');
-  const loadText=document.getElementById('loadingText');
-  overlay.classList.remove('hidden');
-  loadText.textContent='Calculating…';
-
   let totalCost=0,totalTonnes=0,totalCerts=0,itemCount=0;
-  let idx=0;
-  const CHUNK=500;
 
-  function processChunk(){
-    try{
-      const end=Math.min(idx+CHUNK,uploadedRows.length);
-      for(;idx<end;idx++){
-        const row=uploadedRows[idx];
-        const res={
-          itemCode:row.itemCode,qty:row.qty,originCode:row.origin,
-          country:'',productName:'',cn8:'',weightKg:0,tonnes:0,
-          emissions:0,benchmark:0,freeAlloc:0,chargeableEm:0,
-          costPerTonne:0,totalCost:0,status:'OK',note:''
-        };
+  for(let i=0;i<uploadedRows.length;i++){
+    const row=uploadedRows[i];
+    const res={
+      itemCode:row.itemCode,qty:row.qty,originCode:row.origin,
+      country:'',productName:'',cn8:'',weightKg:0,tonnes:0,
+      emissions:0,benchmark:0,freeAlloc:0,chargeableEm:0,
+      costPerTonne:0,totalCost:0,status:'OK',note:''
+    };
 
-        const country=ISO3[row.origin];
-        if(!country){
-          const item=ITEMS[row.itemCode];
-          if(item){res.productName=item[0];res.weightKg=item[1];res.cn8=item[2];res.tonnes=(row.qty*item[1])/1000;}
-          res.status='ERROR';res.note='Unknown country code: '+row.origin;resultRows.push(res);continue;
-        }
-        res.country=country;
-
-        const item=ITEMS[row.itemCode];
-        if(!item){res.status='ERROR';res.note='Item not found in catalogue';resultRows.push(res);continue;}
-        res.productName=item[0];res.weightKg=item[1];res.cn8=item[2];
-        res.tonnes=(row.qty*item[1])/1000;
-
-        let stdEntries=STD_VALUES[country];
-        let usedCountry=country;
-        let match=null;
-        if(stdEntries) match=findBestCn(stdEntries,res.cn8);
-
-        if((!stdEntries||!match||match.bestLen<4)&&!EU_COUNTRIES.has(row.origin)){
-          const oc=STD_VALUES['Other Countries and Territories'];
-          if(oc){const om=findBestCn(oc,res.cn8);if(om.bestLen>=4){stdEntries=oc;match=om;usedCountry='Other Countries and Territories';}}
-        }
-
-        if(!stdEntries||!match||match.bestLen<4){
-          res.status='WARN';
-          res.note=!stdEntries?'No default values for '+country:'No matching CN code in '+country+' for '+res.cn8;
-          const bm=findBmFast(res.cn8,'');if(bm)res.benchmark=bm.value;
-        }else{
-          const entry=stdEntries[match.bestIdx];
-          const val=entry[yearIdx];
-          const stdRoute=(entry[5]||'').trim();
-          if(val!==null&&val!==undefined)res.emissions=val;
-          else{res.status='WARN';res.note='No emission value for year '+year;}
-          const bm=findBmFast(res.cn8,stdRoute);
-          if(bm)res.benchmark=bm.value;
-          else{if(res.status==='OK')res.status='WARN';res.note+=(res.note?' | ':'')+'No benchmark found';}
-          if(entry[0]!==res.cn8) res.note+=(res.note?' | ':'')+'Matched CN: '+entry[0];
-          if(usedCountry!==country) res.note+=(res.note?' | ':'')+'Used default values: '+usedCountry;
-        }
-
-        res.freeAlloc=res.benchmark*factor;
-        res.chargeableEm=Math.max(0,res.emissions-res.freeAlloc);
-        res.costPerTonne=Math.max(0,res.chargeableEm*ets);
-        res.totalCost=res.tonnes*res.costPerTonne;
-        totalCost+=res.totalCost;totalTonnes+=res.tonnes;
-        totalCerts+=res.tonnes*res.chargeableEm;itemCount++;
-        resultRows.push(res);
-      }
-
-      loadText.textContent='Calculating '+idx+' / '+uploadedRows.length+'…';
-
-      if(idx<uploadedRows.length){
-        setTimeout(processChunk,0);
-      }else{
-        setTimeout(function(){renderResults(totalCost,totalTonnes,totalCerts,itemCount);},0);
-      }
-    }catch(err){
-      console.error('Calculation error at row '+idx+':',err);
-      overlay.classList.add('hidden');
-      alert('Error at row '+(idx+1)+': '+err.message);
+    const country=ISO3[row.origin];
+    if(!country){
+      const item=ITEMS[row.itemCode];
+      if(item){res.productName=item[0];res.weightKg=item[1];res.cn8=item[2];res.tonnes=(row.qty*item[1])/1000;}
+      res.status='ERROR';res.note='Unknown country code: '+row.origin;resultRows.push(res);continue;
     }
+    res.country=country;
+
+    const item=ITEMS[row.itemCode];
+    if(!item){res.status='ERROR';res.note='Item not found in catalogue';resultRows.push(res);continue;}
+    res.productName=item[0];res.weightKg=item[1];res.cn8=item[2];
+    res.tonnes=(row.qty*item[1])/1000;
+
+    let stdEntries=STD_VALUES[country];
+    let usedCountry=country;
+    let match=null;
+    if(stdEntries) match=findBestCn(stdEntries,res.cn8);
+
+    if((!stdEntries||!match||match.bestLen<4)&&!EU_COUNTRIES.has(row.origin)){
+      const oc=STD_VALUES['Other Countries and Territories'];
+      if(oc){const om=findBestCn(oc,res.cn8);if(om.bestLen>=4){stdEntries=oc;match=om;usedCountry='Other Countries and Territories';}}
+    }
+
+    if(!stdEntries||!match||match.bestLen<4){
+      res.status='WARN';
+      res.note=!stdEntries?'No default values for '+country:'No matching CN code in '+country+' for '+res.cn8;
+      const bm=findBmFast(res.cn8,'');if(bm)res.benchmark=bm.value;
+    }else{
+      const entry=stdEntries[match.bestIdx];
+      const val=entry[yearIdx];
+      const stdRoute=(entry[5]||'').trim();
+      if(val!==null&&val!==undefined)res.emissions=val;
+      else{res.status='WARN';res.note='No emission value for year '+year;}
+      const bm=findBmFast(res.cn8,stdRoute);
+      if(bm)res.benchmark=bm.value;
+      else{if(res.status==='OK')res.status='WARN';res.note+=(res.note?' | ':'')+'No benchmark found';}
+      if(entry[0]!==res.cn8) res.note+=(res.note?' | ':'')+'Matched CN: '+entry[0];
+      if(usedCountry!==country) res.note+=(res.note?' | ':'')+'Used default values: '+usedCountry;
+    }
+
+    res.freeAlloc=res.benchmark*factor;
+    res.chargeableEm=Math.max(0,res.emissions-res.freeAlloc);
+    res.costPerTonne=Math.max(0,res.chargeableEm*ets);
+    res.totalCost=res.tonnes*res.costPerTonne;
+    totalCost+=res.totalCost;totalTonnes+=res.tonnes;
+    totalCerts+=res.tonnes*res.chargeableEm;itemCount++;
+    resultRows.push(res);
   }
-  setTimeout(processChunk,0);
-}
 
-function renderResults(totalCost,totalTonnes,totalCerts,itemCount){
-  try{
-    const warnCount=resultRows.filter(r=>r.status==='WARN').length;
-    const errCount=resultRows.filter(r=>r.status==='ERROR').length;
-    const warnDiv=document.getElementById('warnings');
-    warnDiv.innerHTML='';
-    if(warnCount||errCount){
-      warnDiv.innerHTML='<div class="warn-box">'+(errCount?errCount+' row(s) with errors. ':'')+
-        (warnCount?warnCount+' row(s) with warnings. ':'')+'Check the Status column below for details.</div>';
-    }
-
-    document.getElementById('summaryGrid').innerHTML=
-      sc('Total CBAM cost',fmt(totalCost)+' €','')+
-      sc('Items processed',itemCount+' / '+uploadedRows.length,'alt')+
-      sc('Total weight',totalTonnes.toFixed(4)+' t','alt')+
-      sc('CBAM certificates',fmt(totalCerts,2),'');
-
-    document.getElementById('tHead').innerHTML='<tr>'+
-      ['#','Item Code','Product Name','Origin','CN Code','Qty (pcs)','Weight (t)','Emissions','Benchmark','Free Alloc.','Chargeable','Cost/t','Total Cost','Status','Note']
-      .map(h=>'<th>'+h+'</th>').join('')+'</tr>';
-
-    // Build table as single string
-    const parts=[];
-    for(let j=0;j<resultRows.length;j++){
-      const r=resultRows[j];
-      const cls=r.status==='ERROR'?'status-err':r.status==='WARN'?'status-warn':'status-ok';
-      parts.push('<tr><td class="text-muted">'+(j+1)+'</td><td class="mono">'+r.itemCode+'</td><td>'+r.productName+
-        '</td><td>'+r.originCode+(r.country?' ('+r.country+')':'')+'</td><td class="mono">'+fmtCn(r.cn8)+
-        '</td><td class="text-right">'+r.qty.toLocaleString('en')+'</td><td class="text-right">'+r.tonnes.toFixed(6)+
-        '</td><td class="text-right">'+r.emissions.toFixed(4)+'</td><td class="text-right">'+r.benchmark.toFixed(4)+
-        '</td><td class="text-right">'+r.freeAlloc.toFixed(4)+'</td><td class="text-right">'+r.chargeableEm.toFixed(4)+
-        '</td><td class="text-right">'+fmt(r.costPerTonne)+'</td><td class="text-right" style="font-weight:600">'+
-        fmt(r.totalCost)+' €</td><td class="'+cls+'">'+r.status+'</td><td class="text-muted" style="font-size:12px">'+
-        r.note+'</td></tr>');
-    }
-    document.getElementById('tBody').innerHTML=parts.join('');
-
-    document.getElementById('loadingOverlay').classList.add('hidden');
-    document.getElementById('resultsSection').classList.add('visible');
-    document.getElementById('resultsSection').scrollIntoView({behavior:'smooth'});
-  }catch(err){
-    console.error('Render error:',err);
-    document.getElementById('loadingOverlay').classList.add('hidden');
-    alert('Error rendering results: '+err.message);
+  // Render results
+  const warnCount=resultRows.filter(r=>r.status==='WARN').length;
+  const errCount=resultRows.filter(r=>r.status==='ERROR').length;
+  const warnDiv=document.getElementById('warnings');
+  warnDiv.innerHTML='';
+  if(warnCount||errCount){
+    warnDiv.innerHTML='<div class="warn-box">'+(errCount?errCount+' row(s) with errors. ':'')+
+      (warnCount?warnCount+' row(s) with warnings. ':'')+'Check the Status column below for details.</div>';
   }
+
+  document.getElementById('summaryGrid').innerHTML=
+    sc('Total CBAM cost',fmt(totalCost)+' €','')+
+    sc('Items processed',itemCount+' / '+uploadedRows.length,'alt')+
+    sc('Total weight',totalTonnes.toFixed(4)+' t','alt')+
+    sc('CBAM certificates',fmt(totalCerts,2),'');
+
+  document.getElementById('tHead').innerHTML='<tr>'+
+    ['#','Item Code','Product Name','Origin','CN Code','Qty (pcs)','Weight (t)','Emissions','Benchmark','Free Alloc.','Chargeable','Cost/t','Total Cost','Status','Note']
+    .map(h=>'<th>'+h+'</th>').join('')+'</tr>';
+
+  const parts=[];
+  for(let j=0;j<resultRows.length;j++){
+    const r=resultRows[j];
+    const cls=r.status==='ERROR'?'status-err':r.status==='WARN'?'status-warn':'status-ok';
+    parts.push('<tr><td class="text-muted">'+(j+1)+'</td><td class="mono">'+r.itemCode+'</td><td>'+r.productName+
+      '</td><td>'+r.originCode+(r.country?' ('+r.country+')':'')+'</td><td class="mono">'+fmtCn(r.cn8)+
+      '</td><td class="text-right">'+r.qty.toLocaleString('en')+'</td><td class="text-right">'+r.tonnes.toFixed(6)+
+      '</td><td class="text-right">'+r.emissions.toFixed(4)+'</td><td class="text-right">'+r.benchmark.toFixed(4)+
+      '</td><td class="text-right">'+r.freeAlloc.toFixed(4)+'</td><td class="text-right">'+r.chargeableEm.toFixed(4)+
+      '</td><td class="text-right">'+fmt(r.costPerTonne)+'</td><td class="text-right" style="font-weight:600">'+
+      fmt(r.totalCost)+' €</td><td class="'+cls+'">'+r.status+'</td><td class="text-muted" style="font-size:12px">'+
+      r.note+'</td></tr>');
+  }
+  document.getElementById('tBody').innerHTML=parts.join('');
+
+  document.getElementById('resultsSection').classList.add('visible');
+  document.getElementById('resultsSection').scrollIntoView({behavior:'smooth'});
 }
 
 function sc(label,value,cls){
