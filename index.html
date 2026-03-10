@@ -300,7 +300,7 @@
   <div class="grid-2">
     <div class="form-group">
       <label>Imported goods quantity (tonnes) <span class="info-badge green" id="qtyBadge" style="display:none">auto</span></label>
-      <input type="number" id="qty" value="1" step="0.001" oninput="calculate()">
+      <input type="number" id="qty" value="1" step="0.000001" oninput="calculate()">
       <div class="route-info" id="qtyInfo"></div>
     </div>
     <div class="form-group">
@@ -572,10 +572,10 @@ function onItemSelected(key){
   const pcs=parseFloat(document.getElementById('itemQty').value)||0;
   const t=(pcs*wKg)/1000;
   const qi=document.getElementById('qty');
-  qi.value=t.toFixed(4);qi.classList.add('auto-filled-green');
+  qi.value=t.toFixed(6);qi.classList.add('auto-filled-green');
   document.getElementById('qtyBadge').style.display='inline-block';
-  document.getElementById('qtyInfo').textContent=pcs.toLocaleString('en')+' pcs × '+wKg+' kg = '+(pcs*wKg).toFixed(2)+' kg = '+t.toFixed(4)+' t';
-  document.getElementById('pcDetail').innerHTML='Weight: <span>'+wKg+' kg/pc</span> · CN code: <span>'+formatCn(cn8)+'</span> · Total: <span>'+t.toFixed(4)+' t</span>';
+  document.getElementById('qtyInfo').textContent=pcs.toLocaleString('en')+' pcs × '+wKg+' kg = '+(pcs*wKg).toFixed(4)+' kg = '+t.toFixed(6)+' t';
+  document.getElementById('pcDetail').innerHTML='Weight: <span>'+wKg+' kg/pc</span> · CN code: <span>'+formatCn(cn8)+'</span> · Total: <span>'+t.toFixed(6)+' t</span>';
   const country=document.getElementById('country').value;
   if(!country){
     document.getElementById('noteBox').textContent='Select a country of origin to populate emissions and benchmark values.';
