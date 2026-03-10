@@ -11,181 +11,82 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.3.0/exceljs.min.js"></script>
 <style>
   :root {
-    --bg: #ffffff;
-    --card: #ffffff;
-    --accent: #0066cc;
-    --accent-hover: #004c99;
-    --accent-light: #e8f0fa;
-    --accent-dark: #003d7a;
-    --text: #1a1a1a;
-    --text-muted: #5c5c5c;
-    --border: #d6d3ce;
-    --input-bg: #fafaf9;
-    --result-bg: #0066cc;
-    --shadow: 0 2px 20px rgba(0,0,0,0.06);
-    --green: #1a8a3f;
-    --green-light: #e6f5eb;
-    --red: #cc3333;
-    --red-light: #fdeaea;
-    --orange: #e08a00;
-    --orange-light: #fff8e1;
+    --bg:#ffffff;--card:#ffffff;--accent:#0066cc;--accent-hover:#004c99;
+    --accent-light:#e8f0fa;--accent-dark:#003d7a;--text:#1a1a1a;--muted:#5c5c5c;
+    --border:#d6d3ce;--input-bg:#fafaf9;--result-bg:#0066cc;--shadow:0 2px 20px rgba(0,0,0,0.06);
+    --green:#1a8a3f;--green-light:#e6f5eb;--red:#cc3333;--red-light:#fdeaea;
+    --orange:#e08a00;--orange-light:#fff8e1;
   }
-  * { margin: 0; padding: 0; box-sizing: border-box; }
-  body {
-    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-    background: var(--bg);
-    color: var(--text);
-    min-height: 100vh;
-    padding: 20px;
-  }
-  .page-header { max-width: 1100px; margin: 30px auto 8px; padding: 0 10px; }
-  .page-header h1 { font-size: 38px; font-weight: 700; color: var(--accent-dark); letter-spacing: -0.5px; }
-  .subtitle { max-width: 1100px; margin: 0 auto 20px; padding: 0 10px; }
-  .subtitle p { font-size: 15px; color: var(--text-muted); line-height: 1.5; }
-  .card {
-    background: var(--card); padding: 36px; border-radius: 16px;
-    max-width: 1100px; margin: 0 auto 20px;
-    box-shadow: var(--shadow); border: 1px solid rgba(0,0,0,0.04);
-  }
-  .section-title {
-    font-size: 22px; font-weight: 300; color: var(--accent-dark);
-    margin-bottom: 20px; padding-bottom: 12px; border-bottom: 2px solid var(--accent-light);
-  }
-  .grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 16px; }
-  @media (max-width: 700px) { .grid-3 { grid-template-columns: 1fr; } }
-  .form-group { margin-bottom: 16px; }
-  label {
-    display: block; font-weight: 600; margin-bottom: 6px;
-    font-size: 13px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.4px;
-  }
-  select, input[type="number"] {
-    width: 100%; padding: 11px 14px; border: 1px solid var(--border); border-radius: 8px;
-    font-size: 15px; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-    background: var(--input-bg); color: var(--text); transition: border-color 0.2s, box-shadow 0.2s;
-  }
-  select {
-    appearance: none; -webkit-appearance: none;
-    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%235c5c5c' stroke-width='1.5' fill='none'/%3E%3C/svg%3E");
-    background-repeat: no-repeat; background-position: right 14px center; padding-right: 36px; cursor: pointer;
-  }
-  select:focus, input:focus { border-color: var(--accent); outline: none; box-shadow: 0 0 0 3px rgba(0,102,204,0.1); }
-
-  /* Upload area */
-  .upload-area {
-    border: 2px dashed var(--border); border-radius: 12px; padding: 40px;
-    text-align: center; cursor: pointer; transition: all 0.2s;
-    background: var(--input-bg);
-  }
-  .upload-area:hover, .upload-area.drag-over {
-    border-color: var(--accent); background: var(--accent-light);
-  }
-  .upload-area svg { width: 48px; height: 48px; color: var(--accent); margin-bottom: 12px; }
-  .upload-area .upload-title { font-size: 16px; font-weight: 600; color: var(--text); margin-bottom: 4px; }
-  .upload-area .upload-sub { font-size: 13px; color: var(--text-muted); }
-  .upload-area input[type="file"] { display: none; }
-  .file-info {
-    display: none; align-items: center; gap: 12px; padding: 14px 18px;
-    background: var(--green-light); border: 1px solid var(--green); border-radius: 10px; margin-top: 12px;
-  }
-  .file-info.visible { display: flex; }
-  .file-info .fi-name { font-weight: 600; font-size: 14px; color: var(--green); flex: 1; }
-  .file-info .fi-remove {
-    background: none; border: none; color: var(--red); cursor: pointer;
-    font-size: 13px; font-weight: 600; padding: 4px 8px; border-radius: 4px;
-  }
-  .file-info .fi-remove:hover { background: var(--red-light); }
-
-  /* Template download */
-  .template-link {
-    display: inline-flex; align-items: center; gap: 6px;
-    font-size: 13px; color: var(--accent); font-weight: 600; cursor: pointer;
-    text-decoration: none; margin-top: 12px;
-  }
-  .template-link:hover { text-decoration: underline; }
-  .template-link svg { width: 16px; height: 16px; }
-
-  /* Buttons */
-  .btn {
-    display: inline-flex; align-items: center; gap: 8px;
-    padding: 12px 24px; border-radius: 8px; font-size: 15px; font-weight: 600;
-    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-    cursor: pointer; border: none; transition: all 0.2s;
-  }
-  .btn-primary { background: var(--accent); color: white; }
-  .btn-primary:hover { background: var(--accent-hover); }
-  .btn-primary:disabled { background: #aaa; cursor: not-allowed; }
-  .btn-outline {
-    background: white; color: var(--accent); border: 1px solid var(--accent);
-  }
-  .btn-outline:hover { background: var(--accent-light); }
-  .btn-reset-b {
-    background: var(--input-bg); color: var(--text-muted); border: 1px solid var(--border);
-  }
-  .btn-reset-b:hover { background: #fee; border-color: #d44; color: #c33; }
-  .btn svg { width: 18px; height: 18px; }
-  .btn-row { display: flex; gap: 12px; flex-wrap: wrap; margin-top: 20px; }
-
-  /* Results table */
-  .results-section { display: none; }
-  .results-section.visible { display: block; }
-  .table-wrap { overflow-x: auto; margin-top: 16px; }
-  table { width: 100%; border-collapse: collapse; font-size: 13px; }
-  thead th {
-    text-align: left; padding: 10px 12px; background: var(--accent-light);
-    color: var(--accent-dark); font-weight: 700; text-transform: uppercase;
-    letter-spacing: 0.3px; font-size: 11px; white-space: nowrap;
-    position: sticky; top: 0;
-  }
-  tbody td {
-    padding: 9px 12px; border-bottom: 1px solid #f0f0f0;
-  }
-  tbody tr:hover { background: #fafafa; }
-  .mono { font-family: 'Consolas','Courier New',monospace; }
-  .text-right { text-align: right; }
-  .text-muted { color: var(--text-muted); }
-  .status-ok { color: var(--green); font-weight: 600; }
-  .status-warn { color: var(--orange); font-weight: 600; }
-  .status-err { color: var(--red); font-weight: 600; }
-
-  /* Summary cards */
-  .summary-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; margin-bottom: 20px; }
-  @media (max-width: 700px) { .summary-grid { grid-template-columns: 1fr 1fr; } }
-  .summary-card {
-    background: var(--result-bg); color: white; padding: 20px; border-radius: 12px;
-  }
-  .summary-card .sc-label { font-size: 11px; text-transform: uppercase; letter-spacing: 0.8px; opacity: 0.8; }
-  .summary-card .sc-value { font-size: 28px; font-weight: 300; margin-top: 4px; }
-  .summary-card.alt { background: var(--accent-dark); }
-
-  /* Warnings */
-  .warn-box {
-    background: var(--orange-light); border-left: 3px solid var(--orange);
-    padding: 12px 16px; border-radius: 0 8px 8px 0; font-size: 13px; color: #5a3e00;
-    margin-bottom: 16px; line-height: 1.5;
-  }
-
-  /* Loading */
-  .loading-overlay {
-    position: fixed; top: 0; left: 0; right: 0; bottom: 0;
-    background: rgba(255,255,255,0.92); z-index: 9999;
-    display: flex; align-items: center; justify-content: center; flex-direction: column;
-  }
-  .loading-overlay.hidden { display: none; }
-  .loading-spinner {
-    width: 48px; height: 48px; border: 4px solid var(--accent-light);
-    border-top-color: var(--accent); border-radius: 50%; animation: spin 0.8s linear infinite;
-  }
-  @keyframes spin { to { transform: rotate(360deg); } }
-  .loading-text { margin-top: 16px; font-size: 16px; color: var(--text-muted); }
-  .loading-progress { margin-top: 8px; font-size: 13px; color: var(--accent); font-weight: 600; }
-
-  .back-link {
-    display: inline-flex; align-items: center; gap: 6px; font-size: 14px;
-    color: var(--accent); text-decoration: none; font-weight: 600;
-    max-width: 1100px; margin: 10px auto 0; padding: 0 10px;
-  }
-  .back-link:hover { text-decoration: underline; }
-  .back-link svg { width: 16px; height: 16px; }
+  *{margin:0;padding:0;box-sizing:border-box;}
+  body{font-family:'Segoe UI',Tahoma,Geneva,Verdana,sans-serif;background:var(--bg);color:var(--text);min-height:100vh;padding:20px;}
+  .page-header{max-width:1100px;margin:30px auto 8px;padding:0 10px;}
+  .page-header h1{font-size:38px;font-weight:700;color:var(--accent-dark);letter-spacing:-0.5px;}
+  .subtitle{max-width:1100px;margin:0 auto 20px;padding:0 10px;}
+  .subtitle p{font-size:15px;color:var(--muted);line-height:1.5;}
+  .card{background:var(--card);padding:36px;border-radius:16px;max-width:1100px;margin:0 auto 20px;box-shadow:var(--shadow);border:1px solid rgba(0,0,0,0.04);}
+  .section-title{font-size:22px;font-weight:300;color:var(--accent-dark);margin-bottom:20px;padding-bottom:12px;border-bottom:2px solid var(--accent-light);}
+  .grid-3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:16px;}
+  @media(max-width:700px){.grid-3{grid-template-columns:1fr;}}
+  .form-group{margin-bottom:16px;}
+  label{display:block;font-weight:600;margin-bottom:6px;font-size:13px;color:var(--muted);text-transform:uppercase;letter-spacing:0.4px;}
+  select,input[type="number"]{width:100%;padding:11px 14px;border:1px solid var(--border);border-radius:8px;font-size:15px;font-family:'Segoe UI',Tahoma,Geneva,Verdana,sans-serif;background:var(--input-bg);color:var(--text);}
+  select{appearance:none;-webkit-appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%235c5c5c' stroke-width='1.5' fill='none'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 14px center;padding-right:36px;cursor:pointer;}
+  select:focus,input:focus{border-color:var(--accent);outline:none;box-shadow:0 0 0 3px rgba(0,102,204,0.1);}
+  .upload-area{border:2px dashed var(--border);border-radius:12px;padding:40px;text-align:center;cursor:pointer;transition:all 0.2s;background:var(--input-bg);}
+  .upload-area:hover,.upload-area.drag-over{border-color:var(--accent);background:var(--accent-light);}
+  .upload-area svg{width:48px;height:48px;color:var(--accent);margin-bottom:12px;}
+  .upload-area .upload-title{font-size:16px;font-weight:600;color:var(--text);margin-bottom:4px;}
+  .upload-area .upload-sub{font-size:13px;color:var(--muted);}
+  .upload-area input[type="file"]{display:none;}
+  .file-info{display:none;align-items:center;gap:12px;padding:14px 18px;background:var(--green-light);border:1px solid var(--green);border-radius:10px;margin-top:12px;}
+  .file-info.visible{display:flex;}
+  .file-info .fi-name{font-weight:600;font-size:14px;color:var(--green);flex:1;}
+  .file-info .fi-remove{background:none;border:none;color:var(--red);cursor:pointer;font-size:13px;font-weight:600;padding:4px 8px;border-radius:4px;}
+  .file-info .fi-remove:hover{background:var(--red-light);}
+  .template-link{display:inline-flex;align-items:center;gap:6px;font-size:13px;color:var(--accent);font-weight:600;cursor:pointer;text-decoration:none;margin-top:12px;}
+  .template-link:hover{text-decoration:underline;}
+  .template-link svg{width:16px;height:16px;}
+  .btn{display:inline-flex;align-items:center;gap:8px;padding:12px 24px;border-radius:8px;font-size:15px;font-weight:600;font-family:'Segoe UI',Tahoma,Geneva,Verdana,sans-serif;cursor:pointer;border:none;transition:all 0.2s;}
+  .btn-primary{background:var(--accent);color:white;}
+  .btn-primary:hover{background:var(--accent-hover);}
+  .btn-primary:disabled{background:#aaa;cursor:not-allowed;}
+  .btn-outline{background:white;color:var(--accent);border:1px solid var(--accent);}
+  .btn-outline:hover{background:var(--accent-light);}
+  .btn-reset-b{background:var(--input-bg);color:var(--muted);border:1px solid var(--border);}
+  .btn-reset-b:hover{background:#fee;border-color:#d44;color:#c33;}
+  .btn svg{width:18px;height:18px;}
+  .btn-row{display:flex;gap:12px;flex-wrap:wrap;margin-top:20px;}
+  .results-section{display:none;}
+  .results-section.visible{display:block;}
+  .table-wrap{overflow-x:auto;margin-top:16px;}
+  table{width:100%;border-collapse:collapse;font-size:13px;}
+  thead th{text-align:left;padding:10px 12px;background:var(--accent-light);color:var(--accent-dark);font-weight:700;text-transform:uppercase;letter-spacing:0.3px;font-size:11px;white-space:nowrap;position:sticky;top:0;}
+  tbody td{padding:9px 12px;border-bottom:1px solid #f0f0f0;}
+  tbody tr:hover{background:#fafafa;}
+  .mono{font-family:'Consolas','Courier New',monospace;}
+  .text-right{text-align:right;}
+  .text-muted{color:var(--muted);}
+  .status-ok{color:var(--green);font-weight:600;}
+  .status-warn{color:var(--orange);font-weight:600;}
+  .status-err{color:var(--red);font-weight:600;}
+  .summary-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:16px;margin-bottom:20px;}
+  @media(max-width:700px){.summary-grid{grid-template-columns:1fr 1fr;}}
+  .summary-card{background:var(--result-bg);color:white;padding:20px;border-radius:12px;}
+  .summary-card .sc-label{font-size:11px;text-transform:uppercase;letter-spacing:0.8px;opacity:0.8;}
+  .summary-card .sc-value{font-size:28px;font-weight:300;margin-top:4px;}
+  .summary-card.alt{background:var(--accent-dark);}
+  .warn-box{background:var(--orange-light);border-left:3px solid var(--orange);padding:12px 16px;border-radius:0 8px 8px 0;font-size:13px;color:#5a3e00;margin-bottom:16px;line-height:1.5;}
+  .loading-overlay{position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(255,255,255,0.92);z-index:9999;display:flex;align-items:center;justify-content:center;flex-direction:column;}
+  .loading-overlay.hidden{display:none;}
+  .loading-spinner{width:48px;height:48px;border:4px solid var(--accent-light);border-top-color:var(--accent);border-radius:50%;animation:spin 0.8s linear infinite;}
+  @keyframes spin{to{transform:rotate(360deg);}}
+  .loading-text{margin-top:16px;font-size:16px;color:var(--muted);}
+  .loading-progress{margin-top:8px;font-size:13px;color:var(--accent);font-weight:600;}
+  .back-link{display:inline-flex;align-items:center;gap:6px;font-size:14px;color:var(--accent);text-decoration:none;font-weight:600;max-width:1100px;margin:10px auto 0;padding:0 10px;}
+  .back-link:hover{text-decoration:underline;}
+  .back-link svg{width:16px;height:16px;}
+  .info-badge{display:inline-block;font-size:11px;padding:2px 8px;border-radius:4px;background:var(--accent-light);color:var(--accent);font-weight:600;margin-left:8px;}
+  .route-info{font-size:12px;color:var(--muted);margin-top:4px;font-style:italic;}
 </style>
 </head>
 <body>
@@ -202,11 +103,8 @@
 </a>
 
 <div class="page-header"><h1>CBAM – BCZ Bulk Calculator</h1></div>
-<div class="subtitle">
-  <p>Upload an Excel file with item numbers, quantities and country codes to calculate CBAM costs for multiple items at once.</p>
-</div>
+<div class="subtitle"><p>Upload an Excel file with item numbers, quantities and country codes to calculate CBAM costs for multiple items at once.</p></div>
 
-<!-- SETTINGS -->
 <div class="card">
   <div class="section-title">Settings</div>
   <div class="grid-3">
@@ -229,14 +127,13 @@
       <input type="number" id="etsPrice" value="90" step="1">
     </div>
     <div class="form-group">
-      <label>CBAM Factor / Phase <span class="info-badge" id="factorBadge" style="font-size:11px;padding:2px 8px;border-radius:4px;background:#e8f0fa;color:#0066cc;font-weight:600;margin-left:8px;">auto</span></label>
+      <label>CBAM Factor / Phase <span class="info-badge" id="factorBadge">auto</span></label>
       <input type="number" id="factor" value="0.975" step="0.001">
-      <div style="font-size:12px;color:#5c5c5c;margin-top:4px;font-style:italic;" id="factorInfoBulk">2026: factor 0.975</div>
+      <div class="route-info" id="factorInfoBulk">2026: factor 0.975</div>
     </div>
   </div>
 </div>
 
-<!-- UPLOAD -->
 <div class="card">
   <div class="section-title">Upload File</div>
   <div class="upload-area" id="uploadArea" onclick="document.getElementById('fileInput').click()">
@@ -265,7 +162,6 @@
   </div>
 </div>
 
-<!-- RESULTS -->
 <div class="card results-section" id="resultsSection">
   <div class="section-title">Results</div>
   <div id="warnings"></div>
@@ -294,15 +190,7 @@ let uploadedRows=[];
 let resultRows=[];
 
 const CBAM_FACTORS={2026:0.975,2027:0.95,2028:0.9,2029:0.775,2030:0.515,2031:0.39,2032:0.265,2033:0.14,2034:0.0};
-
 const EU_COUNTRIES=new Set(['AUT','BEL','BGR','HRV','CYP','CZE','DNK','EST','FIN','FRA','DEU','GRC','HUN','IRL','ITA','LVA','LTU','LUX','MLT','NLD','POL','PRT','ROU','SVK','SVN','ESP','SWE']);
-
-function onYearChange(){
-  const y=parseInt(document.getElementById('year').value);
-  const f=CBAM_FACTORS[y]||0;
-  document.getElementById('factor').value=f;
-  document.getElementById('factorInfoBulk').textContent=y+': factor '+f;
-}
 
 const ISO3={
 "ALB":"Albania","DZA":"Algeria","AGO":"Angola","ARG":"Argentina","ARM":"Armenia","AUS":"Australia",
@@ -328,17 +216,24 @@ const ISO3={
 "VNM":"Vietnam","YEM":"Yemen","ZMB":"Zambia","ZWE":"Zimbabwe"
 };
 
+function onYearChange(){
+  var y=parseInt(document.getElementById('year').value);
+  var f=CBAM_FACTORS[y]||0;
+  document.getElementById('factor').value=f;
+  document.getElementById('factorInfoBulk').textContent=y+': factor '+f;
+}
+
 // === LOAD DATA ===
 async function loadData(){
-  const p=document.getElementById('loadingProgress');
+  var p=document.getElementById('loadingProgress');
   try{
     p.textContent='1 / 3 — default values…';
     STD_VALUES=await(await fetch('std_values.json?v='+Date.now())).json();
     p.textContent='2 / 3 — benchmarks…';
     BENCHMARKS=await(await fetch('benchmarks.json?v='+Date.now())).json();
     p.textContent='3 / 3 — item catalogue…';
-    let itemsText=await(await fetch('items.json?v='+Date.now())).text();
-    itemsText=itemsText.replace(/[\x00-\x1f]/g, function(c){return c==='\n'||c==='\r'||c==='\t'?' ':''});
+    var itemsText=await(await fetch('items.json?v='+Date.now())).text();
+    itemsText=itemsText.replace(/[\x00-\x1f]/g,function(c){return c==='\n'||c==='\r'||c==='\t'?' ':''});
     ITEMS=JSON.parse(itemsText);
     p.textContent='Done!';
   }catch(e){p.textContent='Error: '+e.message;return;}
@@ -346,24 +241,24 @@ async function loadData(){
 }
 
 // === DRAG & DROP ===
-const ua=document.getElementById('uploadArea');
-ua.addEventListener('dragover',e=>{e.preventDefault();ua.classList.add('drag-over');});
-ua.addEventListener('dragleave',()=>ua.classList.remove('drag-over'));
-ua.addEventListener('drop',e=>{e.preventDefault();ua.classList.remove('drag-over');if(e.dataTransfer.files.length)processFile(e.dataTransfer.files[0]);});
+var ua=document.getElementById('uploadArea');
+ua.addEventListener('dragover',function(e){e.preventDefault();ua.classList.add('drag-over');});
+ua.addEventListener('dragleave',function(){ua.classList.remove('drag-over');});
+ua.addEventListener('drop',function(e){e.preventDefault();ua.classList.remove('drag-over');if(e.dataTransfer.files.length)processFile(e.dataTransfer.files[0]);});
 
 function handleFile(input){if(input.files.length)processFile(input.files[0]);}
 
 function processFile(file){
-  const reader=new FileReader();
+  var reader=new FileReader();
   reader.onload=function(e){
-    const data=new Uint8Array(e.target.result);
-    const wb=XLSX.read(data,{type:'array'});
-    const ws=wb.Sheets[wb.SheetNames[0]];
-    const json=XLSX.utils.sheet_to_json(ws,{header:1});
+    var data=new Uint8Array(e.target.result);
+    var wb=XLSX.read(data,{type:'array'});
+    var ws=wb.Sheets[wb.SheetNames[0]];
+    var json=XLSX.utils.sheet_to_json(ws,{header:1});
     uploadedRows=[];
-    const startRow=json.length>0&&typeof json[0][0]==='string'&&isNaN(json[0][0])?1:0;
-    for(let i=startRow;i<json.length;i++){
-      const r=json[i];
+    var startRow=json.length>0&&typeof json[0][0]==='string'&&isNaN(json[0][0])?1:0;
+    for(var i=startRow;i<json.length;i++){
+      var r=json[i];
       if(!r||!r[0])continue;
       uploadedRows.push({
         itemCode:String(r[0]).trim(),
@@ -387,160 +282,127 @@ function clearFile(){
   document.getElementById('resultsSection').classList.remove('visible');
 }
 
-// === CALCULATION ===
-// Helper: find best CN match in a set of std entries
+// === HELPERS ===
+function cpfx(a,b){var i=0;while(i<a.length&&i<b.length&&a[i]===b[i])i++;return i;}
+function fmt(n,d){d=d||2;return n.toLocaleString('en',{minimumFractionDigits:d,maximumFractionDigits:d});}
+function fmtCn(cn){if(!cn)return'';if(cn.length===8)return cn.slice(0,4)+' '+cn.slice(4,6)+' '+cn.slice(6);if(cn.length===6)return cn.slice(0,4)+' '+cn.slice(4);return cn;}
+function sc(label,value,cls){return'<div class="summary-card '+(cls||'')+'">'+'<div class="sc-label">'+label+'</div><div class="sc-value">'+value+'</div></div>';}
+
 function findBestCn(entries,cn8){
-  let bIdx=-1,bLen=0;
-  entries.forEach((e,idx)=>{const p=cpfx(e[0],cn8);if(p>bLen){bLen=p;bIdx=idx;}});
-  return {bestIdx:bIdx,bestLen:bLen};
+  var bIdx=-1,bLen=0;
+  for(var i=0;i<entries.length;i++){var p=cpfx(entries[i][0],cn8);if(p>bLen){bLen=p;bIdx=i;}}
+  return{bestIdx:bIdx,bestLen:bLen};
 }
 
-// Pre-build benchmark index for fast lookup (called once after data loads)
-let bmIndex=null;
-function buildBmIndex(){
-  bmIndex={exact:{},byPrefix:{}};
-  const allCns=Object.keys(BENCHMARKS);
-  for(const cn of allCns){
-    bmIndex.exact[cn]=BENCHMARKS[cn];
-    // Index by prefixes of length 4,5,6,7
-    for(let len=4;len<=Math.min(8,cn.length);len++){
-      const pfx=cn.substring(0,len);
-      if(!bmIndex.byPrefix[pfx])bmIndex.byPrefix[pfx]=[];
-      bmIndex.byPrefix[pfx].push(cn);
-    }
-  }
-}
-
-function findBmFast(cn,sr){
-  if(!bmIndex)buildBmIndex();
-  // Priority 1: exact match
-  if(bmIndex.exact[cn]){
-    const entries=bmIndex.exact[cn];
-    const cs=(sr||'').replace(/[()]/g,'').trim().toUpperCase();
-    if(cs){for(const e of entries){const cb=(e[1]||'').replace(/[()]/g,'').trim().toUpperCase();if(cb===cs)return{value:e[0],route:e[1],desc:e[2],matchedCn:cn};}}
-    const wd=entries.find(e=>e[2]);
-    const fb=wd||entries[0];
+// === BENCHMARK LOOKUP ===
+function findBm(cn,sr){
+  // Priority 1: exact CN match
+  if(BENCHMARKS[cn]){
+    var entries=BENCHMARKS[cn];
+    var cs=(sr||'').replace(/[()]/g,'').trim().toUpperCase();
+    if(cs){for(var i=0;i<entries.length;i++){var cb=(entries[i][1]||'').replace(/[()]/g,'').trim().toUpperCase();if(cb===cs)return{value:entries[i][0],route:entries[i][1],desc:entries[i][2],matchedCn:cn};}}
+    var wd=null;for(var j=0;j<entries.length;j++){if(entries[j][2]){wd=entries[j];break;}}
+    var fb=wd||entries[0];
     return{value:fb[0],route:fb[1],desc:fb[2],matchedCn:cn};
   }
-  // Priority 2: find by longest prefix match, then route
-  const cs=(sr||'').replace(/[()]/g,'').trim().toUpperCase();
-  for(let len=Math.min(7,cn.length);len>=4;len--){
-    const pfx=cn.substring(0,len);
-    const candidates=bmIndex.byPrefix[pfx];
-    if(!candidates)continue;
-    // Sort candidates by closeness to cn
-    const sorted=[...candidates].sort((a,b)=>cpfx(b,cn)-cpfx(a,cn));
-    // Try route match first
-    if(cs){
-      for(const bmCn of sorted){
-        for(const e of BENCHMARKS[bmCn]){
-          const cb=(e[1]||'').replace(/[()]/g,'').trim().toUpperCase();
-          if(cb===cs)return{value:e[0],route:e[1],desc:e[2],matchedCn:bmCn};
-        }
+  // Priority 2: parent/child/sibling
+  var cands=[];
+  var keys=Object.keys(BENCHMARKS);
+  for(var k=0;k<keys.length;k++){
+    var bmCn=keys[k];
+    if(bmCn.startsWith(cn)||cn.startsWith(bmCn)){cands.push(bmCn);continue;}
+    var p2=cpfx(bmCn,cn);
+    if(p2>=6)cands.push(bmCn);
+  }
+  if(!cands.length)return null;
+  cands.sort(function(a,b){return cpfx(b,cn)-cpfx(a,cn);});
+  var cs2=(sr||'').replace(/[()]/g,'').trim().toUpperCase();
+  if(cs2){
+    for(var m=0;m<cands.length;m++){
+      var ents=BENCHMARKS[cands[m]];
+      for(var n=0;n<ents.length;n++){
+        var cb2=(ents[n][1]||'').replace(/[()]/g,'').trim().toUpperCase();
+        if(cb2===cs2)return{value:ents[n][0],route:ents[n][1],desc:ents[n][2],matchedCn:cands[m]};
       }
     }
-    // Fallback: first candidate
-    const best=BENCHMARKS[sorted[0]];
-    const wd=best.find(e=>e[2]);
-    const fb=wd||best[0];
-    return{value:fb[0],route:fb[1],desc:fb[2],matchedCn:sorted[0]};
   }
-  return null;
+  var best=BENCHMARKS[cands[0]];
+  var wd2=null;for(var q=0;q<best.length;q++){if(best[q][2]){wd2=best[q];break;}}
+  var fb2=wd2||best[0];
+  return{value:fb2[0],route:fb2[1],desc:fb2[2],matchedCn:cands[0]};
 }
 
+// === CALCULATION ===
 function runCalculation(){
   if(!uploadedRows.length)return;
+  var year=document.getElementById('year').value;
+  var ets=parseFloat(document.getElementById('etsPrice').value)||90;
+  var factor=parseFloat(document.getElementById('factor').value)||0.975;
+  var yearIdx=year==='2026'?2:year==='2027'?3:4;
 
-  // Show overlay, then run calculation after browser paints it
-  const overlay=document.getElementById('loadingOverlay');
-  const loadText=document.getElementById('loadingText');
-  document.getElementById('loadingProgress').textContent='';
-  overlay.classList.remove('hidden');
-  loadText.textContent='Calculating '+uploadedRows.length+' rows…';
-
-  setTimeout(function(){
-    try{ doCalculation(); }
-    catch(err){ console.error(err); alert('Calculation error: '+err.message); }
-    overlay.classList.add('hidden');
-  },50);
-}
-
-function doCalculation(){
-  const year=document.getElementById('year').value;
-  const ets=parseFloat(document.getElementById('etsPrice').value)||90;
-  const factor=parseFloat(document.getElementById('factor').value)||0.975;
-  const yearIdx=year==='2026'?2:year==='2027'?3:4;
-
-  if(!bmIndex)buildBmIndex();
   resultRows=[];
-  let totalCost=0,totalTonnes=0,totalCerts=0,itemCount=0;
+  var totalCost=0,totalTonnes=0,totalCerts=0,itemCount=0;
 
-  for(let i=0;i<uploadedRows.length;i++){
-    const row=uploadedRows[i];
-    const res={
-      itemCode:row.itemCode,qty:row.qty,originCode:row.origin,
-      country:'',productName:'',cn8:'',weightKg:0,tonnes:0,
-      emissions:0,benchmark:0,freeAlloc:0,chargeableEm:0,
-      costPerTonne:0,totalCost:0,status:'OK',note:''
-    };
+  for(var i=0;i<uploadedRows.length;i++){
+    var row=uploadedRows[i];
+    var res={itemCode:row.itemCode,qty:row.qty,originCode:row.origin,country:'',productName:'',cn8:'',weightKg:0,tonnes:0,emissions:0,benchmark:0,freeAlloc:0,chargeableEm:0,costPerTonne:0,totalCost:0,status:'OK',note:''};
 
-    const country=ISO3[row.origin];
+    var country=ISO3[row.origin];
     if(!country){
-      const item=ITEMS[row.itemCode];
-      if(item){res.productName=item[0];res.weightKg=item[1];res.cn8=item[2];res.tonnes=(row.qty*item[1])/1000;}
+      var itm=ITEMS[row.itemCode];
+      if(itm){res.productName=itm[0];res.weightKg=itm[1];res.cn8=itm[2];res.tonnes=(row.qty*itm[1])/1000;}
       res.status='ERROR';res.note='Unknown country code: '+row.origin;resultRows.push(res);continue;
     }
     res.country=country;
 
-    const item=ITEMS[row.itemCode];
+    var item=ITEMS[row.itemCode];
     if(!item){res.status='ERROR';res.note='Item not found in catalogue';resultRows.push(res);continue;}
     res.productName=item[0];res.weightKg=item[1];res.cn8=item[2];
     res.tonnes=(row.qty*item[1])/1000;
 
-    let stdEntries=STD_VALUES[country];
-    let usedCountry=country;
-    let match=null;
-    if(stdEntries) match=findBestCn(stdEntries,res.cn8);
+    var stdEntries=STD_VALUES[country];
+    var usedCountry=country;
+    var match=null;
+    if(stdEntries)match=findBestCn(stdEntries,res.cn8);
 
     if((!stdEntries||!match||match.bestLen<4)&&!EU_COUNTRIES.has(row.origin)){
-      const oc=STD_VALUES['Other Countries and Territories'];
-      if(oc){const om=findBestCn(oc,res.cn8);if(om.bestLen>=4){stdEntries=oc;match=om;usedCountry='Other Countries and Territories';}}
+      var oc=STD_VALUES['Other Countries and Territories'];
+      if(oc){var om=findBestCn(oc,res.cn8);if(om.bestLen>=4){stdEntries=oc;match=om;usedCountry='Other Countries and Territories';}}
     }
 
     if(!stdEntries||!match||match.bestLen<4){
       res.status='WARN';
       res.note=!stdEntries?'No default values for '+country:'No matching CN code in '+country+' for '+res.cn8;
-      const bm=findBmFast(res.cn8,'');if(bm)res.benchmark=bm.value;
+      var bm0=findBm(res.cn8,'');if(bm0)res.benchmark=bm0.value;
     }else{
-      const entry=stdEntries[match.bestIdx];
-      const val=entry[yearIdx];
-      const stdRoute=(entry[5]||'').trim();
+      var entry=stdEntries[match.bestIdx];
+      var val=entry[yearIdx];
+      var stdRoute=(entry[5]||'').trim();
       if(val!==null&&val!==undefined)res.emissions=val;
       else{res.status='WARN';res.note='No emission value for year '+year;}
-      const bm=findBmFast(res.cn8,stdRoute);
-      if(bm)res.benchmark=bm.value;
+      var bm1=findBm(res.cn8,stdRoute);
+      if(bm1)res.benchmark=bm1.value;
       else{if(res.status==='OK')res.status='WARN';res.note+=(res.note?' | ':'')+'No benchmark found';}
-      if(entry[0]!==res.cn8) res.note+=(res.note?' | ':'')+'Matched CN: '+entry[0];
-      if(usedCountry!==country) res.note+=(res.note?' | ':'')+'Used default values: '+usedCountry;
+      if(entry[0]!==res.cn8)res.note+=(res.note?' | ':'')+'Matched CN: '+entry[0];
+      if(usedCountry!==country)res.note+=(res.note?' | ':'')+'Used default values: '+usedCountry;
     }
 
     res.freeAlloc=res.benchmark*factor;
     res.chargeableEm=Math.max(0,res.emissions-res.freeAlloc);
     res.costPerTonne=Math.max(0,res.chargeableEm*ets);
     res.totalCost=res.tonnes*res.costPerTonne;
-    totalCost+=res.totalCost;totalTonnes+=res.tonnes;
-    totalCerts+=res.tonnes*res.chargeableEm;itemCount++;
+    totalCost+=res.totalCost;totalTonnes+=res.tonnes;totalCerts+=res.tonnes*res.chargeableEm;itemCount++;
     resultRows.push(res);
   }
 
-  // Render results
-  const warnCount=resultRows.filter(r=>r.status==='WARN').length;
-  const errCount=resultRows.filter(r=>r.status==='ERROR').length;
-  const warnDiv=document.getElementById('warnings');
+  // Render
+  var warnCount=0,errCount=0;
+  for(var w=0;w<resultRows.length;w++){if(resultRows[w].status==='WARN')warnCount++;if(resultRows[w].status==='ERROR')errCount++;}
+  var warnDiv=document.getElementById('warnings');
   warnDiv.innerHTML='';
   if(warnCount||errCount){
     warnDiv.innerHTML='<div class="warn-box">'+(errCount?errCount+' row(s) with errors. ':'')+
-      (warnCount?warnCount+' row(s) with warnings. ':'')+'Check the Status column below for details.</div>';
+      (warnCount?warnCount+' row(s) with warnings. ':'')+'Check the Status column for details.</div>';
   }
 
   document.getElementById('summaryGrid').innerHTML=
@@ -551,13 +413,13 @@ function doCalculation(){
 
   document.getElementById('tHead').innerHTML='<tr>'+
     ['#','Item Code','Product Name','Origin','CN Code','Qty (pcs)','Weight (t)','Emissions','Benchmark','Free Alloc.','Chargeable','Cost/t','Total Cost','Status','Note']
-    .map(h=>'<th>'+h+'</th>').join('')+'</tr>';
+    .map(function(h){return'<th>'+h+'</th>';}).join('')+'</tr>';
 
-  const parts=[];
-  for(let j=0;j<resultRows.length;j++){
-    const r=resultRows[j];
-    const cls=r.status==='ERROR'?'status-err':r.status==='WARN'?'status-warn':'status-ok';
-    parts.push('<tr><td class="text-muted">'+(j+1)+'</td><td class="mono">'+r.itemCode+'</td><td>'+r.productName+
+  var html=[];
+  for(var j=0;j<resultRows.length;j++){
+    var r=resultRows[j];
+    var cls=r.status==='ERROR'?'status-err':r.status==='WARN'?'status-warn':'status-ok';
+    html.push('<tr><td class="text-muted">'+(j+1)+'</td><td class="mono">'+r.itemCode+'</td><td>'+r.productName+
       '</td><td>'+r.originCode+(r.country?' ('+r.country+')':'')+'</td><td class="mono">'+fmtCn(r.cn8)+
       '</td><td class="text-right">'+r.qty.toLocaleString('en')+'</td><td class="text-right">'+r.tonnes.toFixed(6)+
       '</td><td class="text-right">'+r.emissions.toFixed(4)+'</td><td class="text-right">'+r.benchmark.toFixed(4)+
@@ -566,220 +428,118 @@ function doCalculation(){
       fmt(r.totalCost)+' €</td><td class="'+cls+'">'+r.status+'</td><td class="text-muted" style="font-size:12px">'+
       r.note+'</td></tr>');
   }
-  document.getElementById('tBody').innerHTML=parts.join('');
-
+  document.getElementById('tBody').innerHTML=html.join('');
   document.getElementById('resultsSection').classList.add('visible');
   document.getElementById('resultsSection').scrollIntoView({behavior:'smooth'});
 }
 
-function sc(label,value,cls){
-  return '<div class="summary-card '+(cls||'')+'">' +
-    '<div class="sc-label">'+label+'</div><div class="sc-value">'+value+'</div></div>';
-}
-
-function cpfx(a,b){let i=0;while(i<a.length&&i<b.length&&a[i]===b[i])i++;return i;}
-
-// === HELPERS ===
-function fmt(n,d=2){return n.toLocaleString('en',{minimumFractionDigits:d,maximumFractionDigits:d});}
-function fmtCn(cn){
-  if(!cn)return'';
-  if(cn.length===8)return cn.slice(0,4)+' '+cn.slice(4,6)+' '+cn.slice(6);
-  if(cn.length===6)return cn.slice(0,4)+' '+cn.slice(4);
-  return cn;
-}
-
-// === DOWNLOAD RESULTS ===
+// === EXPORT RESULTS ===
 function downloadResults(){
   if(!resultRows.length)return;
-  const year=document.getElementById('year').value;
-  const ets=document.getElementById('etsPrice').value;
-  const factor=document.getElementById('factor').value;
-
-  const header=['Item Code','Product Name','Origin Code','Country','CN Code','Quantity (pcs)',
+  var year=document.getElementById('year').value;
+  var ets=document.getElementById('etsPrice').value;
+  var factor=document.getElementById('factor').value;
+  var header=['Item Code','Product Name','Origin Code','Country','CN Code','Quantity (pcs)',
     'Weight per pc (kg)','Total Weight (t)','Reported Emissions (tCO₂e/t)','Benchmark (tCO₂e/t)',
     'Free Allocation (tCO₂e/t)','Chargeable Emissions (tCO₂e/t)','Cost per tonne (€)',
     'Total CBAM Cost (€)','Status','Note'];
-
-  const data=[header];
-  let totalCost=0;
-  for(const r of resultRows){
-    data.push([
-      r.itemCode, r.productName, r.originCode, r.country, r.cn8,
-      r.qty, r.weightKg, +r.tonnes.toFixed(6),
-      +r.emissions.toFixed(4), +r.benchmark.toFixed(4), +r.freeAlloc.toFixed(4),
-      +r.chargeableEm.toFixed(4), +r.costPerTonne.toFixed(2),
-      +r.totalCost.toFixed(2), r.status, r.note
-    ]);
+  var data=[header];
+  var totalCost=0;
+  for(var i=0;i<resultRows.length;i++){
+    var r=resultRows[i];
+    data.push([r.itemCode,r.productName,r.originCode,r.country,r.cn8,
+      r.qty,r.weightKg,+r.tonnes.toFixed(6),+r.emissions.toFixed(4),+r.benchmark.toFixed(4),
+      +r.freeAlloc.toFixed(4),+r.chargeableEm.toFixed(4),+r.costPerTonne.toFixed(2),
+      +r.totalCost.toFixed(2),r.status,r.note]);
     totalCost+=r.totalCost;
   }
-  // Summary row
   data.push([]);
-  data.push(['TOTAL','','','','','','','','','','','','',+totalCost.toFixed(2),'',
-    'Year: '+year+' | ETS: '+ets+' €/t | Factor: '+factor]);
-
-  const ws=XLSX.utils.aoa_to_sheet(data);
-  // Column widths
+  data.push(['TOTAL','','','','','','','','','','','','',+totalCost.toFixed(2),'','Year: '+year+' | ETS: '+ets+' €/t | Factor: '+factor]);
+  var ws=XLSX.utils.aoa_to_sheet(data);
   ws['!cols']=[{wch:12},{wch:40},{wch:8},{wch:18},{wch:12},{wch:12},{wch:12},{wch:12},{wch:14},{wch:14},{wch:14},{wch:14},{wch:14},{wch:16},{wch:8},{wch:40}];
-  const wb=XLSX.utils.book_new();
+  var wb=XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(wb,ws,'CBAM Results');
   XLSX.writeFile(wb,'CBAM_Results_'+year+'.xlsx');
 }
 
-// === DOWNLOAD REPORT ===
-
+// === EXPORT REPORT ===
 function downloadReport(){
   if(!resultRows.length)return;
-  const year=document.getElementById('year').value;
-  const ets=document.getElementById('etsPrice').value;
-  const factor=document.getElementById('factor').value;
+  var year=document.getElementById('year').value;
+  var ets=document.getElementById('etsPrice').value;
+  var factor=document.getElementById('factor').value;
 
-  // Group by itemCode + originCode
-  const groups={};
-  for(const r of resultRows){
-    const key=r.itemCode+'|'+r.originCode;
+  var groups={};
+  for(var i=0;i<resultRows.length;i++){
+    var r=resultRows[i];
+    var key=r.itemCode+'|'+r.originCode;
     if(!groups[key]){
-      let reportStatus=r.status;
-      let reportNote=r.note;
-      if(r.status==='ERROR'&&EU_COUNTRIES.has(r.originCode)){
-        reportStatus='Produced in EU';reportNote='';
-      }
-      if(r.status==='WARN'&&(r.note.includes('No matching CN')||r.note.includes('No default value'))){
-        reportStatus='CN code out of CBAM scope';reportNote='';
-      }
-      groups[key]={
-        itemCode:r.itemCode,
-        productName:r.productName,
-        originCode:r.originCode,
-        cn8:r.cn8,
-        qty:0,
-        weightKg:r.weightKg,
-        tonnes:0,
-        emissions:r.emissions,
-        benchmark:r.benchmark,
-        totalCost:0,
-        status:reportStatus,
-        note:reportNote
-      };
+      var reportStatus=r.status;
+      var reportNote=r.note;
+      if(r.status==='ERROR'&&EU_COUNTRIES.has(r.originCode)){reportStatus='Produced in EU';reportNote='';}
+      if(r.status==='WARN'&&(r.note.indexOf('No matching CN')>=0||r.note.indexOf('No default value')>=0)){reportStatus='CN code out of CBAM scope';reportNote='';}
+      groups[key]={itemCode:r.itemCode,productName:r.productName,originCode:r.originCode,cn8:r.cn8,qty:0,weightKg:r.weightKg,tonnes:0,emissions:r.emissions,benchmark:r.benchmark,totalCost:0,status:reportStatus,note:reportNote};
     }
-    const g=groups[key];
-    g.qty+=r.qty;
-    g.tonnes+=r.tonnes;
-    g.totalCost+=r.totalCost;
+    var g=groups[key];
+    g.qty+=r.qty;g.tonnes+=r.tonnes;g.totalCost+=r.totalCost;
   }
 
-  const wb=new ExcelJS.Workbook();
-  const ws=wb.addWorksheet('CBAM Report');
-
-  // Column definitions (no Country column)
-  const cols=[
-    {header:'Item Code',key:'itemCode',width:14},
-    {header:'Product Name',key:'productName',width:42},
-    {header:'Origin',key:'origin',width:10},
-    {header:'CN Code',key:'cn8',width:14},
-    {header:'Quantity (pcs)',key:'qty',width:14},
-    {header:'Weight per pc (kg)',key:'weightKg',width:16},
-    {header:'Total Weight (t)',key:'tonnes',width:14},
-    {header:'Reported Emissions (tCO₂e/t)',key:'emissions',width:18},
-    {header:'Benchmark (tCO₂e/t)',key:'benchmark',width:16},
-    {header:'Total CBAM Cost (€)',key:'totalCost',width:18},
-    {header:'Status',key:'status',width:26},
-    {header:'Note',key:'note',width:40}
+  var wb2=new ExcelJS.Workbook();
+  var ws2=wb2.addWorksheet('CBAM Report');
+  var cols=[
+    {header:'Item Code',key:'itemCode',width:14},{header:'Product Name',key:'productName',width:42},
+    {header:'Origin',key:'origin',width:10},{header:'CN Code',key:'cn8',width:14},
+    {header:'Quantity (pcs)',key:'qty',width:14},{header:'Weight per pc (kg)',key:'weightKg',width:16},
+    {header:'Total Weight (t)',key:'tonnes',width:14},{header:'Reported Emissions (tCO₂e/t)',key:'emissions',width:18},
+    {header:'Benchmark (tCO₂e/t)',key:'benchmark',width:16},{header:'Total CBAM Cost (€)',key:'totalCost',width:18},
+    {header:'Status',key:'status',width:26},{header:'Note',key:'note',width:40}
   ];
-  ws.columns=cols;
-
-  // Light blue fill for highlighted columns
-  const lightBlue={type:'pattern',pattern:'solid',fgColor:{argb:'FFD6E8F7'}};
-  // Columns to highlight: Item Code(1), Origin(3), Quantity(5), Total CBAM Cost(10)
-  const hlCols=[1,3,5,10];
-
-  // Header row (row 1): bold + light blue on highlighted cols
-  const headerRow=ws.getRow(1);
+  ws2.columns=cols;
+  var lightBlue={type:'pattern',pattern:'solid',fgColor:{argb:'FFD6E8F7'}};
+  var hlCols=[1,3,5,10];
+  var headerRow=ws2.getRow(1);
   headerRow.font={bold:true,size:11};
-  headerRow.eachCell((cell,colNum)=>{
+  headerRow.eachCell(function(cell,colNum){
     cell.border={bottom:{style:'thin',color:{argb:'FF999999'}}};
-    if(hlCols.includes(colNum)){
-      cell.fill=lightBlue;
-    }
+    if(hlCols.indexOf(colNum)>=0)cell.fill=lightBlue;
   });
+  ws2.autoFilter={from:{row:1,column:1},to:{row:1,column:cols.length}};
 
-  // Autofilter on header
-  ws.autoFilter={from:{row:1,column:1},to:{row:1,column:cols.length}};
+  var totalCost2=0;
+  var groupValues=Object.values(groups);
+  for(var j=0;j<groupValues.length;j++){
+    var gv=groupValues[j];
+    var reportCost=(gv.status==='Produced in EU'||gv.status==='CN code out of CBAM scope')?0:gv.totalCost;
+    var row2=ws2.addRow({itemCode:gv.itemCode,productName:gv.productName,origin:gv.originCode,cn8:gv.cn8,qty:gv.qty,weightKg:gv.weightKg,tonnes:+gv.tonnes.toFixed(6),emissions:+gv.emissions.toFixed(4),benchmark:+gv.benchmark.toFixed(4),totalCost:+reportCost.toFixed(2),status:gv.status,note:gv.note});
+    for(var h=0;h<hlCols.length;h++){row2.getCell(hlCols[h]).fill=lightBlue;}
+    totalCost2+=reportCost;
+  }
 
-  // Data rows
-  let totalCost=0;
-  const groupValues=Object.values(groups);
-  groupValues.forEach(g=>{
-    const reportCost=(g.status==='Produced in EU'||g.status==='CN code out of CBAM scope')?0:g.totalCost;
-    const row=ws.addRow({
-      itemCode:g.itemCode,
-      productName:g.productName,
-      origin:g.originCode,
-      cn8:g.cn8,
-      qty:g.qty,
-      weightKg:g.weightKg,
-      tonnes:+g.tonnes.toFixed(6),
-      emissions:+g.emissions.toFixed(4),
-      benchmark:+g.benchmark.toFixed(4),
-      totalCost:+reportCost.toFixed(2),
-      status:g.status,
-      note:g.note
-    });
-    // Apply light blue to highlighted columns
-    hlCols.forEach(c=>{row.getCell(c).fill=lightBlue;});
-    totalCost+=reportCost;
-  });
-
-  // Empty row
-  ws.addRow([]);
-
-  // TOTAL row — bold
-  const totalRowNum=groupValues.length+3;
-  const totalRow=ws.addRow({
-    itemCode:'TOTAL',
-    productName:'',
-    origin:'',
-    cn8:'',
-    qty:'',
-    weightKg:'',
-    tonnes:'',
-    emissions:'',
-    benchmark:'',
-    totalCost:+totalCost.toFixed(2),
-    status:'',
-    note:'Year: '+year+' | ETS: '+ets+' €/t | Factor: '+factor
-  });
+  ws2.addRow([]);
+  var totalRowNum=groupValues.length+3;
+  var totalRow=ws2.addRow({itemCode:'TOTAL',totalCost:+totalCost2.toFixed(2),note:'Year: '+year+' | ETS: '+ets+' €/t | Factor: '+factor});
   totalRow.font={bold:true,size:11};
-  hlCols.forEach(c=>{totalRow.getCell(c).fill=lightBlue;});
+  for(var t=0;t<hlCols.length;t++){totalRow.getCell(hlCols[t]).fill=lightBlue;}
 
-  // Disclaimer row — red text
-  const discRow=ws.addRow({
-    itemCode:'Please note: These CBAM costs are indicative estimates based on provided data and actual costs may vary.'
-  });
+  var discRow=ws2.addRow({itemCode:'Please note: These CBAM costs are indicative estimates based on provided data and actual costs may vary.'});
   discRow.font={color:{argb:'FFCC0000'},italic:true,size:10};
-  // Merge disclaimer across all columns
-  ws.mergeCells(totalRowNum+1,1,totalRowNum+1,cols.length);
+  ws2.mergeCells(totalRowNum+1,1,totalRowNum+1,cols.length);
 
-  // Export
-  wb.xlsx.writeBuffer().then(buf=>{
-    const blob=new Blob([buf],{type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'});
-    const url=URL.createObjectURL(blob);
-    const a=document.createElement('a');
+  wb2.xlsx.writeBuffer().then(function(buf){
+    var blob=new Blob([buf],{type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'});
+    var url=URL.createObjectURL(blob);
+    var a=document.createElement('a');
     a.href=url;a.download='CBAM_Report_'+year+'.xlsx';a.click();
     URL.revokeObjectURL(url);
   });
 }
 
-// === DOWNLOAD TEMPLATE ===
+// === TEMPLATE ===
 function downloadTemplate(){
-  const data=[
-    ['Item Code','Quantity','Origin'],
-    [1208071,100000,'CHN'],
-    [1233890,250000,'TWN'],
-    [1306685,30000,'VNM']
-  ];
-  const ws=XLSX.utils.aoa_to_sheet(data);
+  var data=[['Item Code','Quantity','Origin'],[1208071,100000,'CHN'],[1233890,250000,'TWN'],[1306685,30000,'VNM']];
+  var ws=XLSX.utils.aoa_to_sheet(data);
   ws['!cols']=[{wch:14},{wch:12},{wch:10}];
-  const wb=XLSX.utils.book_new();
+  var wb=XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(wb,ws,'Sheet1');
   XLSX.writeFile(wb,'CBAM_template.xlsx');
 }
